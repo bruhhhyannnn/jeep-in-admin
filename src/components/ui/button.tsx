@@ -1,0 +1,92 @@
+import React, { forwardRef } from 'react';
+import { cn } from '@/lib';
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'outline' | 'ghost' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
+  isLoading?: boolean;
+  loadingText?: string;
+  startIcon?: React.ReactNode;
+  endIcon?: React.ReactNode;
+}
+
+const variantClasses = {
+  primary:
+    'bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-800 shadow-[inset_0_3px_4px_rgba(255,255,255,0.15),inset_0_-3px_4px_rgba(0,0,0,0.35)]',
+  outline:
+    'bg-transparent text-gray-300 ring-1 ring-inset ring-gray-700 hover:bg-gray-900 dark:text-gray-700 dark:ring-gray-300 dark:hover:bg-gray-100',
+  ghost:
+    'text-gray-400 hover:bg-gray-900 hover:text-gray-200 dark:text-gray-600 dark:hover:bg-gray-100 dark:hover:text-gray-800',
+  danger:
+    'bg-danger-600 text-white hover:bg-danger-700 disabled:bg-danger-800 shadow-[inset_0_3px_4px_rgba(255,255,255,0.15),inset_0_-3px_4px_rgba(0,0,0,0.35)]',
+};
+
+const sizeClasses = {
+  sm: 'px-3 py-1.5 text-xs',
+  md: 'px-5 py-2.5 text-sm',
+  lg: 'px-7 py-3 text-base',
+};
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      children,
+      variant = 'primary',
+      size = 'md',
+      isLoading = false,
+      loadingText,
+      startIcon,
+      endIcon,
+      className,
+      disabled,
+      ...props
+    },
+    ref
+  ) => (
+    <button
+      ref={ref}
+      disabled={disabled || isLoading}
+      className={cn(
+        'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200',
+        variantClasses[variant],
+        sizeClasses[size],
+        (disabled || isLoading) && 'cursor-not-allowed opacity-50',
+        className
+      )}
+      {...props}
+    >
+      {isLoading ? (
+        <>
+          <svg
+            className="h-4 w-4 animate-spin"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+          {loadingText ?? children}
+        </>
+      ) : (
+        <>
+          {startIcon}
+          {children}
+          {endIcon}
+        </>
+      )}
+    </button>
+  )
+);
+Button.displayName = 'Button';

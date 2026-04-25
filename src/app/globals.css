@@ -1,0 +1,179 @@
+@import 'tailwindcss';
+
+@theme {
+  /* ─── Brand: Dodger Blue ─── */
+  --color-brand-50: #edf9ff;
+  --color-brand-100: #d7f1ff;
+  --color-brand-200: #b9e8ff;
+  --color-brand-300: #88dbff;
+  --color-brand-400: #50c5ff;
+  --color-brand-500: #28a7ff;
+  --color-brand-600: #1e90ff;
+  --color-brand-700: #0a71eb;
+  --color-brand-800: #0f5abe;
+  --color-brand-900: #134e95;
+  --color-brand-950: #11305a;
+
+  /* ─── Neutral ─── */
+  --color-gray-50: #0a0a0a;
+  --color-gray-100: #171717;
+  --color-gray-200: #262626;
+  --color-gray-300: #404040;
+  --color-gray-400: #525252;
+  --color-gray-500: #737373;
+  --color-gray-600: #a3a3a3;
+  --color-gray-700: #d4d4d4;
+  --color-gray-800: #e5e5e5;
+  --color-gray-900: #f5f5f5;
+  --color-gray-950: #fafafa;
+
+  /* ─── Success / Emerald ─── */
+  --color-success-50: #ecfdf5;
+  --color-success-100: #d1fae5;
+  --color-success-200: #a7f3d0;
+  --color-success-300: #6ee7b7;
+  --color-success-400: #34d399;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
+  --color-success-800: #065f46;
+  --color-success-900: #064e3b;
+  --color-success-950: #022c22;
+
+  /* ─── Warning / Golden Yellow ─── */
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+  --color-warning-950: #451a03;
+
+  /* ─── Danger ─── */
+  --color-danger-50: #fff1f2;
+  --color-danger-100: #ffe4e6;
+  --color-danger-200: #fecdd3;
+  --color-danger-300: #fda4af;
+  --color-danger-400: #fb7185;
+  --color-danger-500: #f43f5e;
+  --color-danger-600: #e11d48;
+  --color-danger-700: #be123c;
+  --color-danger-800: #9f1239;
+  --color-danger-900: #881337;
+  --color-danger-950: #4c0519;
+
+  /* error aliases → danger */
+  --color-error-50: #fff1f2;
+  --color-error-100: #ffe4e6;
+  --color-error-200: #fecdd3;
+  --color-error-300: #fda4af;
+  --color-error-400: #fb7185;
+  --color-error-500: #f43f5e;
+  --color-error-600: #e11d48;
+  --color-error-700: #be123c;
+  --color-error-800: #9f1239;
+  --color-error-900: #881337;
+  --color-error-950: #4c0519;
+
+  /* ─── Info ─── */
+  --color-info-50: #f0f9ff;
+  --color-info-100: #e0f2fe;
+  --color-info-200: #bae6fd;
+  --color-info-300: #7dd3fc;
+  --color-info-400: #38bdf8;
+  --color-info-500: #0ea5e9;
+  --color-info-600: #0284c7;
+  --color-info-700: #0369a1;
+  --color-info-800: #075985;
+  --color-info-900: #0c4a6e;
+  --color-info-950: #082f49;
+
+  /* ─── Electric Violet ─── */
+  --color-violet-50: #faf5ff;
+  --color-violet-100: #f3e9fe;
+  --color-violet-200: #e9d6fe;
+  --color-violet-300: #d8b6fc;
+  --color-violet-400: #bf88f8;
+  --color-violet-500: #a75af2;
+  --color-violet-600: #8a2be2;
+  --color-violet-700: #7d28c8;
+  --color-violet-800: #6a25a4;
+  --color-violet-900: #572083;
+  --color-violet-950: #3b0a61;
+
+  /* ─── Font ─── */
+  --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+
+  /* ─── Shadows ─── */
+  --shadow-theme-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-theme-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-theme-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-theme-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+
+/* ─── Base ─── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-gray-950 text-gray-100 antialiased;
+  font-family: var(--font-sans);
+}
+
+.dark body {
+  @apply bg-gray-100 text-gray-900;
+}
+
+/* ─── Sidebar nav helpers ─── */
+.menu-item {
+  @apply flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200;
+}
+
+.menu-item-active {
+  @apply bg-brand-600 text-white;
+}
+
+.menu-item-inactive {
+  @apply text-gray-500 hover:bg-gray-800 hover:text-gray-200;
+}
+
+.dark .menu-item-inactive {
+  @apply hover:bg-gray-900 hover:text-gray-700;
+}
+
+.menu-item-icon-active {
+  @apply text-white;
+}
+
+.menu-item-icon-inactive {
+  @apply text-gray-500;
+}
+
+/* ─── Custom scrollbar ─── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-gray-700;
+}
+
+/* ─── MapLibre map container ─── */
+.maplibregl-map {
+  width: 100%;
+  height: 100%;
+  border-radius: 0.75rem;
+}
