@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -63,13 +63,13 @@ export default function WorkingHoursPage() {
       ) : (
         <>
           {/* Status banner */}
-          <div className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/50 px-5 py-4 dark:border-gray-200 dark:bg-gray-50">
+          <div className="dark:shadow-theme-md-dark flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="flex items-center gap-3">
               <div className="bg-brand-600/10 flex h-10 w-10 items-center justify-center rounded-xl">
                 <Clock size={20} className="text-brand-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-200 dark:text-gray-800">
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                   {route?.name ?? 'Route'}
                 </p>
                 <p className="text-xs text-gray-500">
@@ -86,8 +86,8 @@ export default function WorkingHoursPage() {
           </div>
 
           {/* Edit form */}
-          <div className="max-w-md rounded-xl border border-gray-800 bg-gray-950 p-6 dark:border-gray-200 dark:bg-white">
-            <h3 className="mb-5 text-sm font-semibold text-gray-200 dark:text-gray-800">
+          <div className="dark:shadow-theme-md-dark max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-950">
+            <h3 className="mb-5 text-sm font-semibold text-gray-800 dark:text-gray-200">
               Set Working Hours
             </h3>
 
@@ -113,7 +113,7 @@ export default function WorkingHoursPage() {
                 </div>
               </div>
 
-              <p className="text-xs text-gray-600">
+              <p className="text-sm text-gray-600">
                 {/* TODO: GPS enforcement — when outside working hours the mobile app should
                     automatically set isSharing=false on the driver's location document.
                     Current implementation is informational only.
@@ -122,15 +122,16 @@ export default function WorkingHoursPage() {
                 enabled in a future update.
               </p>
 
-              <Button
-                type="submit"
-                size="sm"
-                disabled={!isDirty}
-                isLoading={isSubmitting || updateHours.isPending}
-                loadingText="Saving…"
-              >
-                Save Working Hours
-              </Button>
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  disabled={!isDirty}
+                  isLoading={isSubmitting || updateHours.isPending}
+                  loadingText="Saving…"
+                >
+                  Save Working Hours
+                </Button>
+              </div>
             </form>
           </div>
         </>

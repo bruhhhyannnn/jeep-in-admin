@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -26,6 +26,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
     const role = userProfile?.role;
 
+    // TODO: works but cannot be able to go back to sign-in page anymore
     // Neither admin nor super_admin → unauthorized
     if (!role || (role !== 'admin' && role !== 'super_admin')) {
       router.push('/unauthorized');
@@ -41,7 +42,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950 dark:bg-gray-100">
+      <div className="flex min-h-screen items-center justify-center">
         <Spinner size="lg" />
       </div>
     );

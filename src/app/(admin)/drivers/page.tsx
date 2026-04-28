@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, Bus, UserMinus, Copy, Check } from 'lucide-react';
+import { Plus, Search, Trash2, Bus, UserMinus, UserCheck, Copy, Check } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
@@ -21,27 +21,20 @@ import {
 import { useAuthStore } from '@/store';
 import {
   useDrivers,
+  useJeepneys,
   useCreateDriver,
-  // useUpdateDriver,
   useDeactivateDriver,
+  useReactivateDriver,
   useDeleteDriver,
   useAssignJeepney,
   useUnassignJeepney,
   useUnassignedJeepneys,
   useOrganization,
-  // useDriver,
 } from '@/hooks';
-import {
-  driverCreateSchema,
-  // driverEditSchema,
-  type DriverCreateFormData,
-  // type DriverEditFormData,
-} from '@/lib';
+import { driverCreateSchema, type DriverCreateFormData } from '@/lib';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { DriverProfile } from '@/types';
 import { toDate } from '@/lib';
-
-// const PER_PAGE = 20;
 
 export default function DriversPage() {
   const { userProfile } = useAuthStore();
@@ -52,17 +45,24 @@ export default function DriversPage() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
-  // const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deactivateId, setDeactivateId] = useState<string | null>(null);
+  const [reactivateId, setReactivateId] = useState<string | null>(null);
   const [assignId, setAssignId] = useState<string | null>(null);
+  const [unassignTarget, setUnassignTarget] = useState<{
+    driverUid: string;
+    jeepneyId: string;
+  } | null>(null);
   const [copiedUid, setCopiedUid] = useState<string | null>(null);
 
   const { data: drivers = [], isPending, isFetching, error } = useDrivers(orgId);
+  const { data: allJeepneys = [] } = useJeepneys(orgId);
   const { data: unassignedJeepneys = [] } = useUnassignedJeepneys(orgId);
-  // const createDriver = useCreateDriver();
+
+  const jeepneyMap = Object.fromEntries(allJeepneys.map((j) => [j.id, j]));
   // const updateDriver = useUpdateDriver();
   const deactivateDriver = useDeactivateDriver();
+  const reactivateDriver = useReactivateDriver();
   const deleteDriver = useDeleteDriver();
   const assignJeepney = useAssignJeepney();
   const unassignJeepney = useUnassignJeepney();
@@ -95,11 +95,11 @@ export default function DriversPage() {
       cell: ({ row: { original: d } }) => (
         <div className="flex items-center gap-3">
           <div className="bg-brand-600/20 text-brand-400 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-            {d.firstName.charAt(0)}
-            {d.lastName.charAt(0)}
+            {d.firstName.charAt(0).toUpperCase()}
+            {d.lastName.charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-medium text-gray-200 dark:text-gray-800">
+            <p className="font-medium text-gray-800 dark:text-gray-200">
               {d.firstName} {d.lastName}
             </p>
             <p className="text-xs text-gray-500">{d.email}</p>
@@ -120,16 +120,23 @@ export default function DriversPage() {
     {
       id: 'jeepney',
       header: 'Assigned Jeepney',
-      accessorFn: (d) => d.assignedJeepneyId ?? '',
-      cell: ({ row: { original: d } }) =>
-        d.assignedJeepneyId ? (
-          <Badge color="primary" size="sm">
-            <Bus size={11} className="mr-1" />
-            Assigned
-          </Badge>
+      accessorFn: (d) => {
+        const j = d.assignedJeepneyId ? jeepneyMap[d.assignedJeepneyId] : null;
+        return j ? `${j.jeepneyNumber} ${j.plateNumber}` : '';
+      },
+      cell: ({ row: { original: d } }) => {
+        const j = d.assignedJeepneyId ? jeepneyMap[d.assignedJeepneyId] : null;
+        return j ? (
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+              #{j.jeepneyNumber}
+            </p>
+            <p className="font-mono text-xs text-gray-500">{j.plateNumber}</p>
+          </div>
         ) : (
-          <span className="text-xs text-gray-600">Unassigned</span>
-        ),
+          <span className="text-xs text-gray-500">—</span>
+        );
+      },
     },
     {
       id: 'mustChange',
@@ -161,11 +168,11 @@ export default function DriversPage() {
       header: 'Actions',
       enableSorting: false,
       cell: ({ row: { original: d } }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             title="Copy email"
             onClick={() => handleCopyEmail(d.email, d.uid)}
-            className="text-gray-600 transition-colors hover:text-gray-300"
+            className="cursor-pointer text-gray-600 transition-colors hover:text-gray-300"
           >
             {copiedUid === d.uid ? (
               <Check size={16} className="text-success-400" />
@@ -177,16 +184,25 @@ export default function DriversPage() {
             <button
               title="Deactivate driver"
               onClick={() => setDeactivateId(d.uid)}
-              className="hover:text-warning-400 text-gray-600 transition-colors"
+              className="hover:text-warning-400 cursor-pointer text-gray-600 transition-colors"
             >
               <UserMinus size={16} />
+            </button>
+          )}
+          {!d.isActive && (
+            <button
+              title="Reactivate driver"
+              onClick={() => setReactivateId(d.uid)}
+              className="hover:text-success-400 cursor-pointer text-gray-600 transition-colors"
+            >
+              <UserCheck size={16} />
             </button>
           )}
           {!d.assignedJeepneyId && d.isActive && (
             <button
               title="Assign jeepney"
               onClick={() => setAssignId(d.uid)}
-              className="hover:text-brand-400 text-gray-600 transition-colors"
+              className="hover:text-brand-400 cursor-pointer text-gray-600 transition-colors"
             >
               <Bus size={16} />
             </button>
@@ -195,12 +211,9 @@ export default function DriversPage() {
             <button
               title="Unassign jeepney"
               onClick={() =>
-                unassignJeepney.mutate(
-                  { driverUid: d.uid, jeepneyId: d.assignedJeepneyId! },
-                  { onSuccess: () => toast.success('Jeepney unassigned') }
-                )
+                setUnassignTarget({ driverUid: d.uid, jeepneyId: d.assignedJeepneyId! })
               }
-              className="hover:text-danger-400 text-gray-600 transition-colors"
+              className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
             >
               <Bus size={16} />
             </button>
@@ -208,7 +221,7 @@ export default function DriversPage() {
           <button
             title="Delete driver"
             onClick={() => setDeleteId(d.uid)}
-            className="hover:text-danger-400 text-gray-600 transition-colors"
+            className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
           >
             <Trash2 size={16} />
           </button>
@@ -277,6 +290,26 @@ export default function DriversPage() {
         )}
       </Modal>
 
+      {/* Unassign jeepney confirm */}
+      <ConfirmDialog
+        isOpen={!!unassignTarget}
+        onClose={() => setUnassignTarget(null)}
+        onConfirm={() =>
+          unassignJeepney.mutate(unassignTarget!, {
+            onSuccess: () => {
+              setUnassignTarget(null);
+              toast.success('Jeepney unassigned');
+            },
+            onError: (e) => toast.error(e.message),
+          })
+        }
+        title="Unassign jeepney"
+        message="This will remove the jeepney assignment from this driver. The jeepney will become available for reassignment."
+        confirmLabel="Unassign"
+        variant="danger"
+        isLoading={unassignJeepney.isPending}
+      />
+
       {/* Deactivate confirm */}
       <ConfirmDialog
         isOpen={!!deactivateId}
@@ -295,6 +328,26 @@ export default function DriversPage() {
         confirmLabel="Deactivate"
         variant="danger"
         isLoading={deactivateDriver.isPending}
+      />
+
+      {/* Reactivate confirm */}
+      <ConfirmDialog
+        isOpen={!!reactivateId}
+        onClose={() => setReactivateId(null)}
+        onConfirm={() =>
+          reactivateDriver.mutate(reactivateId!, {
+            onSuccess: () => {
+              setReactivateId(null);
+              toast.success('Driver reactivated');
+            },
+            onError: (e) => toast.error(e.message),
+          })
+        }
+        title="Reactivate driver"
+        message="This driver will be marked active again and can log in to the app."
+        confirmLabel="Reactivate"
+        variant="primary"
+        isLoading={reactivateDriver.isPending}
       />
 
       {/* Delete confirm */}

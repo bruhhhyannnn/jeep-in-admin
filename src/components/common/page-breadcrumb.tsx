@@ -9,7 +9,7 @@ interface PageBreadcrumbProps {
 export function PageBreadcrumb({ pageTitle, parent }: PageBreadcrumbProps) {
   return (
     <div className="mb-6 flex flex-col gap-1">
-      <h2 className="text-xl font-semibold text-gray-100 dark:text-gray-900">{pageTitle}</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{pageTitle}</h2>
       <nav>
         <ol className="flex items-center gap-1 text-sm">
           <li>
@@ -31,7 +31,7 @@ export function PageBreadcrumb({ pageTitle, parent }: PageBreadcrumbProps) {
             </>
           )}
           <ChevronRight size={13} className="text-gray-600" />
-          <li className="text-gray-400 dark:text-gray-600">{pageTitle}</li>
+          <li className="text-gray-600 dark:text-gray-400">{pageTitle}</li>
         </ol>
       </nav>
     </div>

@@ -69,7 +69,7 @@ export function SignInForm() {
           <Bus size={28} className="text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold text-gray-100 dark:text-gray-900">JEEP-IN Admin</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">JEEP-IN Admin</h1>
           <p className="mt-1 text-sm text-gray-500">Sign in to manage your transport operations</p>
         </div>
       </div>

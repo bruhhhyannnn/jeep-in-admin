@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib';
@@ -20,7 +20,7 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
       <button
         onClick={() => onPageChange(page - 1)}
         disabled={page === 1}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-800 text-gray-500 hover:bg-gray-900 disabled:opacity-40 dark:border-gray-200 dark:hover:bg-gray-100"
+        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-40 dark:border-gray-800 dark:hover:bg-gray-900"
       >
         <ChevronLeft size={15} />
       </button>
@@ -34,10 +34,10 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
             <button
               onClick={() => onPageChange(p)}
               className={cn(
-                'flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors',
+                'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-sm font-medium transition-colors',
                 p === page
                   ? 'bg-brand-600 text-white'
-                  : 'border border-gray-800 text-gray-400 hover:bg-gray-900 dark:border-gray-200 dark:hover:bg-gray-100'
+                  : 'hover:bg-brand-100 dark:hover:bg-brand-950 border border-gray-200 text-gray-400 dark:border-gray-800'
               )}
             >
               {p}
@@ -49,7 +49,7 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
       <button
         onClick={() => onPageChange(page + 1)}
         disabled={page === totalPages}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-800 text-gray-500 hover:bg-gray-900 disabled:opacity-40 dark:border-gray-200 dark:hover:bg-gray-100"
+        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-40 dark:border-gray-800 dark:hover:bg-gray-900"
       >
         <ChevronRight size={15} />
       </button>

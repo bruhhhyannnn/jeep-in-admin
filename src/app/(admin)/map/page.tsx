@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { Bus } from 'lucide-react';
@@ -202,9 +202,9 @@ export default function MapPage() {
       {/* Controls bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900/50 px-3 py-1.5 dark:border-gray-200 dark:bg-gray-50">
+          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-100 px-3 py-1.5 dark:border-gray-800 dark:bg-gray-900">
             <span className="bg-success-400 h-2 w-2 animate-pulse rounded-full" />
-            <span className="text-xs font-medium text-gray-300 dark:text-gray-700">
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
               {locLoading ? '…' : activeCount} active jeepney{activeCount !== 1 ? 's' : ''}
             </span>
           </div>
@@ -228,7 +228,7 @@ export default function MapPage() {
       <div className="flex gap-4">
         {/* Map container */}
         <div
-          className="relative flex-1 overflow-hidden rounded-xl border border-gray-800 dark:border-gray-200"
+          className="relative flex-1 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800"
           style={{ height: '600px' }}
         >
           {mapError ? (
@@ -242,7 +242,7 @@ export default function MapPage() {
             <>
               <div ref={mapRef} className="h-full w-full" />
               {!mapLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-950/80 dark:bg-white/80">
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-950/80">
                   <Spinner />
                 </div>
               )}
@@ -252,7 +252,7 @@ export default function MapPage() {
 
         {/* Side panel - active drivers */}
         <div
-          className="w-64 shrink-0 space-y-2 overflow-y-auto rounded-xl border border-gray-800 bg-gray-950 p-3 dark:border-gray-200 dark:bg-white"
+          className="w-64 shrink-0 space-y-2 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-950"
           style={{ maxHeight: '600px' }}
         >
           <p className="mb-3 text-xs font-semibold tracking-wide text-gray-500 uppercase">
@@ -277,12 +277,12 @@ export default function MapPage() {
                   className={`w-full rounded-lg border p-3 text-left transition-colors ${
                     isSelected
                       ? 'border-brand-600 bg-brand-600/10'
-                      : 'border-gray-800 hover:border-gray-700 dark:border-gray-200 dark:hover:border-gray-300'
+                      : 'border-gray-200 hover:border-gray-700 dark:border-gray-800 dark:hover:border-gray-300'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <Bus size={14} className="text-brand-400" />
-                    <span className="text-xs font-medium text-gray-200 dark:text-gray-800">
+                    <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
                       {d ? `${d.firstName} ${d.lastName}` : 'Unknown'}
                     </span>
                   </div>

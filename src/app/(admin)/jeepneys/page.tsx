@@ -20,6 +20,7 @@ import {
 import { useAuthStore } from '@/store';
 import {
   useJeepneys,
+  useDrivers,
   useCreateJeepney,
   useUpdateJeepney,
   useDeleteJeepney,
@@ -43,6 +44,8 @@ export default function JeepneysPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: jeepneys = [], isPending, isFetching, error } = useJeepneys(orgId);
+  const { data: allDrivers = [] } = useDrivers(orgId);
+  const driverMap = Object.fromEntries(allDrivers.map((d) => [d.uid, d]));
   const deleteJeepney = useDeleteJeepney();
 
   useEffect(() => {
@@ -66,7 +69,7 @@ export default function JeepneysPage() {
       accessorKey: 'jeepneyNumber',
       header: 'Jeepney No.',
       cell: ({ getValue }) => (
-        <span className="font-semibold text-gray-200 dark:text-gray-800">
+        <span className="font-semibold text-gray-800 dark:text-gray-200">
           #{String(getValue())}
         </span>
       ),
@@ -75,7 +78,7 @@ export default function JeepneysPage() {
       accessorKey: 'plateNumber',
       header: 'Plate Number',
       cell: ({ getValue }) => (
-        <span className="font-mono text-sm text-gray-300 dark:text-gray-700">
+        <span className="font-mono text-sm text-gray-700 dark:text-gray-300">
           {String(getValue())}
         </span>
       ),
@@ -83,15 +86,29 @@ export default function JeepneysPage() {
     {
       id: 'assignment',
       header: 'Driver',
-      accessorFn: (j) => j.assignedDriverId ?? '',
-      cell: ({ row: { original: j } }) =>
-        j.assignedDriverId ? (
-          <Badge color="primary" size="sm">
-            Assigned
-          </Badge>
+      accessorFn: (j) => {
+        const d = j.assignedDriverId ? driverMap[j.assignedDriverId] : null;
+        return d ? `${d.firstName} ${d.lastName}` : '';
+      },
+      cell: ({ row: { original: j } }) => {
+        const d = j.assignedDriverId ? driverMap[j.assignedDriverId] : null;
+        return d ? (
+          <div className="flex items-center gap-2">
+            <div className="bg-brand-600/20 text-brand-400 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+              {d.firstName.charAt(0).toUpperCase()}
+              {d.lastName.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                {d.firstName} {d.lastName}
+              </p>
+              <p className="text-xs text-gray-500">{d.email}</p>
+            </div>
+          </div>
         ) : (
-          <span className="text-xs text-gray-600">No driver</span>
-        ),
+          <span className="text-xs text-gray-500">—</span>
+        );
+      },
     },
     {
       id: 'status',
@@ -117,19 +134,19 @@ export default function JeepneysPage() {
       header: 'Actions',
       enableSorting: false,
       cell: ({ row: { original: j } }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => {
               setEditId(j.id);
               setModalOpen(true);
             }}
-            className="hover:text-brand-400 text-gray-600 transition-colors"
+            className="hover:text-brand-400 cursor-pointer text-gray-600 transition-colors"
           >
             <Pencil size={16} />
           </button>
           <button
             onClick={() => setDeleteId(j.id)}
-            className="hover:text-danger-400 text-gray-600 transition-colors"
+            className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
           >
             <Trash2 size={16} />
           </button>

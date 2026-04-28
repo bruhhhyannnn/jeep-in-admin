@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useRef } from 'react';
 import { cn } from '@/lib';
@@ -33,7 +33,7 @@ export function Dropdown({ isOpen, onClose, children, className }: DropdownProps
     <div
       ref={ref}
       className={cn(
-        'absolute right-0 z-30 mt-2 rounded-xl border border-gray-800 bg-gray-950 shadow-xl dark:border-gray-200 dark:bg-white',
+        'dark:shadow-theme-lg-dark absolute right-0 z-30 mt-2 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-950',
         className
       )}
     >
@@ -55,7 +55,7 @@ export function DropdownItem({
     <div
       onClick={onClick}
       className={cn(
-        'flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-400 hover:bg-gray-900 dark:text-gray-600 dark:hover:bg-gray-100',
+        'flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-900',
         className
       )}
     >

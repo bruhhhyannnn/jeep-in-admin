@@ -1,5 +1,5 @@
 import { cn } from '@/lib';
-import { Bus } from 'lucide-react';
+import Image from 'next/image';
 
 interface SpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -8,20 +8,27 @@ interface SpinnerProps {
 }
 
 const sizeMap = { sm: 'h-6 w-6', md: 'h-9 w-9', lg: 'h-12 w-12' };
-const iconMap = { sm: 14, md: 18, lg: 24 };
 
 export function Spinner({ size = 'md', center = false, className }: SpinnerProps) {
   return (
     <div
       className={cn(
-        'relative flex items-center justify-center',
+        'relative flex animate-bounce items-center justify-center',
         center && 'mx-auto',
         sizeMap[size],
         className
       )}
     >
-      <div className="border-brand-600/20 border-t-brand-600 absolute inset-0 animate-spin rounded-full border-2" />
-      <Bus size={iconMap[size]} className="text-brand-600" />
+      <Image
+        src="/jeep-in-favicon.png"
+        alt="JEEP-IN Logo"
+        sizes="(max-width: 768px) 48px, 64px"
+        className="object-contain"
+        fill
+        // TODO: why unoptimized
+        unoptimized
+      />
+      <div className="absolute inset-0 animate-spin rounded-full border-2 bg-linear-to-tr from-20% to-white blur-sm dark:to-gray-900" />
     </div>
   );
 }

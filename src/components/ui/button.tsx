@@ -14,9 +14,9 @@ const variantClasses = {
   primary:
     'bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-800 shadow-[inset_0_3px_4px_rgba(255,255,255,0.15),inset_0_-3px_4px_rgba(0,0,0,0.35)]',
   outline:
-    'bg-transparent text-gray-300 ring-1 ring-inset ring-gray-700 hover:bg-gray-900 dark:text-gray-700 dark:ring-gray-300 dark:hover:bg-gray-100',
+    'bg-transparent text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-100 dark:text-gray-300 dark:ring-gray-700 dark:hover:bg-gray-900 shadow-[inset_0_3px_4px_rgba(255,255,255,0.05),inset_0_-3px_4px_rgba(0,0,0,0.15)]',
   ghost:
-    'text-gray-400 hover:bg-gray-900 hover:text-gray-200 dark:text-gray-600 dark:hover:bg-gray-100 dark:hover:text-gray-800',
+    'text-gray-400 hover:bg-gray-100 hover:text-gray-200 dark:text-gray-600 dark:hover:bg-gray-900 dark:hover:text-gray-800 shadow-[inset_0_3px_4px_rgba(255,255,255,0.05),inset_0_-3px_4px_rgba(0,0,0,0.15)]',
   danger:
     'bg-danger-600 text-white hover:bg-danger-700 disabled:bg-danger-800 shadow-[inset_0_3px_4px_rgba(255,255,255,0.15),inset_0_-3px_4px_rgba(0,0,0,0.35)]',
 };
@@ -47,7 +47,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || isLoading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200',
+        'inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200',
         variantClasses[variant],
         sizeClasses[size],
         (disabled || isLoading) && 'cursor-not-allowed opacity-50',

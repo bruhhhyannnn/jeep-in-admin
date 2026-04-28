@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
@@ -72,17 +72,17 @@ export function ConfirmDialog({
       />
       <div
         className={cn(
-          'relative w-full max-w-sm rounded-2xl border border-gray-800 bg-gray-950 p-6 shadow-2xl transition-all duration-200 dark:border-gray-200 dark:bg-white',
+          'relative w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl transition-all duration-200 dark:border-gray-800 dark:bg-gray-950',
           visible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {variant === 'danger' && (
-          <div className="bg-danger-500/10 mb-4 flex h-11 w-11 items-center justify-center rounded-full">
+          <div className="bg-danger-500/10 mb-4 flex h-11 w-11 animate-bounce items-center justify-center rounded-full">
             <AlertTriangle size={20} className="text-danger-400" />
           </div>
         )}
-        <h2 className="mb-1 text-base font-semibold text-gray-100 dark:text-gray-900">{title}</h2>
+        <h2 className="mb-1 text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
         <p className="mb-6 text-sm text-gray-500">{message}</p>
         <div className="flex items-center justify-end gap-3">
           <Button variant="outline" size="sm" onClick={onClose} disabled={isLoading}>

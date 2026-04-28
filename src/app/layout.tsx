@@ -6,7 +6,7 @@ import { Providers } from '@/components/providers';
 const outfit = Outfit({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'JEEP-IN Admin',
+  title: 'JEEP-IN',
   description: 'Admin dashboard for the JEEP-IN Modern Jeepney Tracking System',
   icons: { icon: '/jeep-in-favicon.png' },
 };

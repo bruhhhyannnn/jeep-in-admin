@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Bus, Users, MapPin, Clock } from 'lucide-react';
 import { PageBreadcrumb } from '@/components/common';
@@ -68,20 +68,16 @@ export default function DashboardPage() {
 
       {/* Org header */}
       {org && (
-        <div className="rounded-xl border border-gray-800 bg-gray-900/50 px-5 py-4 dark:border-gray-200 dark:bg-gray-50">
+        <div className="dark:shadow-theme-md-dark rounded-xl bg-violet-600 px-5 py-4 shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-500">Organization</p>
-              <h3 className="mt-0.5 text-base font-semibold text-gray-100 dark:text-gray-900">
-                {org.name}
-              </h3>
+              <p className="text-xs text-white">Organization</p>
+              <h3 className="mt-0.5 text-base font-semibold text-white">{org.name}</h3>
             </div>
             {route && (
               <div className="text-right">
-                <p className="text-xs text-gray-500">Route</p>
-                <p className="mt-0.5 text-sm font-medium text-gray-300 dark:text-gray-700">
-                  {route.name}
-                </p>
+                <p className="text-xs text-white">Route</p>
+                <p className="mt-0.5 text-sm font-medium text-white">{route.name}</p>
               </div>
             )}
           </div>
@@ -96,8 +92,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent drivers table */}
-      <div className="rounded-xl border border-gray-800 bg-gray-950 p-5 dark:border-gray-200 dark:bg-white">
-        <h3 className="mb-4 text-sm font-semibold text-gray-200 dark:text-gray-800">
+      <div className="dark:shadow-theme-sm-dark rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <h3 className="mb-4 text-sm font-semibold text-gray-800 dark:text-gray-200">
           Recent Drivers
         </h3>
         {loadingDrivers ? (
@@ -111,15 +107,15 @@ export default function DashboardPage() {
             {drivers.slice(0, 5).map((d) => (
               <div
                 key={d.uid}
-                className="flex items-center justify-between rounded-lg border border-gray-800 px-4 py-3 dark:border-gray-200"
+                className="dark:shadow-theme-sm-dark flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900"
               >
                 <div className="flex items-center gap-3">
                   <div className="bg-brand-600/20 text-brand-400 flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold">
-                    {d.firstName.charAt(0)}
-                    {d.lastName.charAt(0)}
+                    {d.firstName.charAt(0).toUpperCase()}
+                    {d.lastName.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-200 dark:text-gray-800">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                       {d.firstName} {d.lastName}
                     </p>
                     <p className="text-xs text-gray-500">{d.email}</p>
@@ -162,7 +158,7 @@ function StatCard({
   };
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-950 p-5 dark:border-gray-200 dark:bg-white">
+    <div className="dark:shadow-theme-md-dark rounded-xl border border-gray-200 bg-white p-5 shadow-md dark:border-gray-800 dark:bg-gray-900">
       <div className="flex items-start justify-between">
         <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${bgMap[color]}`}>
           {icon}
@@ -173,8 +169,8 @@ function StatCard({
           </Badge>
         )}
       </div>
-      <p className="mt-4 text-2xl font-bold text-gray-100 dark:text-gray-900">{value}</p>
-      <p className="mt-0.5 text-sm font-medium text-gray-400 dark:text-gray-600">{title}</p>
+      <p className="mt-4 text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
+      <p className="mt-0.5 text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
       {sub && <p className="mt-1 text-xs text-gray-600">{sub}</p>}
     </div>
   );

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { Sun, Moon, Menu, X, PanelRightClose, ChevronDown } from 'lucide-react';
@@ -28,12 +28,12 @@ export function AppHeader() {
   const roleBadge = userProfile?.role === 'super_admin' ? 'Super Admin' : 'Admin';
 
   return (
-    <header className="sticky top-0 z-20 flex w-full border-b border-gray-800 bg-gray-950 dark:border-gray-200 dark:bg-white">
+    <header className="sticky top-0 z-20 flex w-full border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
       <div className="flex w-full items-center justify-between px-4 py-3 lg:px-6">
         {/* Left — sidebar toggle */}
         <button
           onClick={handleToggle}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-800 text-gray-500 hover:bg-gray-900 dark:border-gray-200 dark:hover:bg-gray-100"
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-900"
         >
           {isMobileOpen ? (
             <X size={18} />
@@ -49,7 +49,7 @@ export function AppHeader() {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-800 text-gray-500 hover:bg-gray-900 dark:border-gray-200 dark:hover:bg-gray-100"
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-900"
           >
             {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           </button>
@@ -58,13 +58,13 @@ export function AppHeader() {
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen((p) => !p)}
-              className="dropdown-toggle flex items-center gap-2 rounded-lg px-2 py-1.5 text-gray-400 hover:bg-gray-900 dark:hover:bg-gray-100"
+              className="dropdown-toggle flex items-center gap-2 rounded-lg px-2 py-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900"
             >
               <div className="bg-brand-600 flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white">
                 {displayName.charAt(0).toUpperCase()}
               </div>
               <div className="hidden flex-col items-start leading-tight lg:flex">
-                <span className="text-sm font-medium text-gray-200 dark:text-gray-800">
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                   {displayName}
                 </span>
                 <span className="text-xs text-gray-500">{roleBadge}</span>
@@ -81,8 +81,8 @@ export function AppHeader() {
               className="w-56 p-2"
             >
               <DropdownItem>
-                <div className="w-full border-b border-gray-800 pb-2 dark:border-gray-200">
-                  <p className="text-left text-sm font-medium text-gray-200 dark:text-gray-800">
+                <div className="w-full border-b border-gray-200 pb-2 dark:border-gray-800">
+                  <p className="text-left text-sm font-medium text-gray-800 dark:text-gray-200">
                     {displayName}
                   </p>
                   <p className="text-left text-xs text-gray-500">{user?.email}</p>

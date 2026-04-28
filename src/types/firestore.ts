@@ -3,17 +3,6 @@ import type { Timestamp } from 'firebase/firestore';
 /* ─── Role ─── */
 export type UserRole = 'super_admin' | 'admin' | 'driver' | 'commuter';
 
-/* ─── User (base auth record in Firestore /users/{uid}) ─── */
-export interface FirestoreUser {
-  uid: string;
-  email: string;
-  role: UserRole;
-  displayName: string;
-  isActive: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-
 /* ─── Organization ─── */
 export interface Organization {
   id: string;
@@ -138,13 +127,4 @@ export interface AuditLog {
   details: string | null;
   organizationId: string | null;
   createdAt: Timestamp;
-}
-
-/* ─── Enriched types (joined data for display) ─── */
-export interface DriverWithJeepney extends DriverProfile {
-  jeepney: Pick<Jeepney, 'plateNumber' | 'jeepneyNumber'> | null;
-}
-
-export interface JeepneyWithDriver extends Jeepney {
-  driver: Pick<DriverProfile, 'firstName' | 'lastName' | 'email'> | null;
 }

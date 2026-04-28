@@ -18,8 +18,8 @@ const colorMap: Record<BadgeColor, string> = {
   danger: 'bg-danger-500/15 text-danger-400 dark:bg-danger-500/10 dark:text-danger-600',
   warning: 'bg-warning-500/15 text-warning-400 dark:bg-warning-500/10 dark:text-warning-600',
   info: 'bg-info-500/15 text-info-400 dark:bg-info-500/10 dark:text-info-600',
-  light: 'bg-gray-800 text-gray-400 dark:bg-gray-200 dark:text-gray-600',
-  dark: 'bg-gray-700 text-gray-200 dark:bg-gray-300 dark:text-gray-800',
+  light: 'bg-gray-200/50 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
+  dark: 'bg-gray-700/50 text-gray-200 dark:bg-gray-300 dark:text-gray-800',
 };
 
 // keep template compat - 'error' maps to danger
@@ -35,7 +35,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center gap-1 rounded-full font-medium',
+        'inline-flex items-center justify-center gap-1 rounded-full text-center font-medium',
         size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm',
         colorMap[resolveColor(color)],
         className

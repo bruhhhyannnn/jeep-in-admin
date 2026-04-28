@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -78,7 +78,7 @@ export function AppSidebar() {
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        'fixed top-0 left-0 z-30 flex h-screen flex-col border-r border-gray-800 bg-gray-950 transition-all duration-300 dark:border-gray-200 dark:bg-white',
+        'fixed top-0 left-0 z-30 flex h-screen flex-col border-r border-gray-200 bg-white transition-all duration-300 dark:border-gray-800 dark:bg-gray-950',
         isVisible ? 'w-72' : 'w-20',
         isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}
@@ -86,18 +86,28 @@ export function AppSidebar() {
       {/* Logo */}
       <div
         className={cn(
-          'flex items-center border-b border-gray-800 py-5 dark:border-gray-200',
-          isVisible ? 'justify-start px-5' : 'justify-center px-4',
-          isMobileOpen && 'mt-16'
+          'flex items-center border-b border-gray-200 py-5 dark:border-gray-800',
+          isVisible ? 'justify-start px-5' : 'justify-center px-4'
+          // TODO: revalidate
+          // isMobileOpen && 'mt-16'
         )}
       >
         <Link href="/" className="flex items-center gap-3">
+          {/* TODO: add proper logo here */}
+          {/* <Image
+            src="/jeep-in-logo.png"
+            alt="JEEP-IN Logo"
+            sizes="(max-width: 768px) 48px, 64px"
+            className="object-contain"
+            fill
+            unoptimized
+          /> */}
           <div className="bg-brand-600 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
             <Bus size={20} className="text-white" />
           </div>
           {isVisible && (
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-bold text-gray-100 dark:text-gray-900">JEEP-IN</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">JEEP-IN</span>
               <span className="text-xs text-gray-500">
                 {role === 'super_admin' ? 'Super Admin' : 'Admin Portal'}
               </span>
@@ -188,9 +198,9 @@ export function AppSidebar() {
 
         {/* Org badge */}
         {isVisible && userProfile && (
-          <div className="mt-6 rounded-xl border border-gray-800 bg-gray-900/50 px-3 py-2.5 dark:border-gray-200 dark:bg-gray-100">
+          <div className="mt-6 rounded-xl border border-gray-200 bg-gray-100/50 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-900">
             <p className="text-xs text-gray-500">Organization</p>
-            <p className="mt-0.5 text-sm font-medium text-gray-300 dark:text-gray-700">
+            <p className="mt-0.5 text-sm font-medium text-gray-700 dark:text-gray-300">
               {userProfile.organizationId}
             </p>
           </div>

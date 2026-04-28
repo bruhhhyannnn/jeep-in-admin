@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, UserMinus, Copy, Check } from 'lucide-react';
+import { Plus, Search, Trash2, UserMinus, Copy, Check, UserCheck } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
@@ -22,13 +22,13 @@ import {
   useAdmins,
   useCreateAdmin,
   useDeactivateAdmin,
+  useReactivateAdmin,
   useDeleteAdmin,
   useOrganizations,
 } from '@/hooks';
-import { adminCreateSchema, type AdminCreateFormData } from '@/lib';
+import { adminCreateSchema, toDate, type AdminCreateFormData } from '@/lib';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { AdminProfile } from '@/types';
-import { toDate } from '@/lib';
 
 export default function AdminsPage() {
   const [query, setQuery] = useState('');
@@ -36,10 +36,12 @@ export default function AdminsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deactivateId, setDeactivateId] = useState<string | null>(null);
+  const [reactivateId, setReactivateId] = useState<string | null>(null);
   const [copiedUid, setCopiedUid] = useState<string | null>(null);
 
   const { data: admins = [], isPending, isFetching, error } = useAdmins();
   const deactivateAdmin = useDeactivateAdmin();
+  const reactivateAdmin = useReactivateAdmin();
   const deleteAdmin = useDeleteAdmin();
 
   useEffect(() => {
@@ -70,11 +72,11 @@ export default function AdminsPage() {
       cell: ({ row: { original: a } }) => (
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-xs font-bold text-violet-400">
-            {a.firstName.charAt(0)}
-            {a.lastName.charAt(0)}
+            {a.firstName.charAt(0).toUpperCase()}
+            {a.lastName.charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-medium text-gray-200 dark:text-gray-800">
+            <p className="font-medium text-gray-800 dark:text-gray-200">
               {a.firstName} {a.lastName}
             </p>
             <p className="text-xs text-gray-500">{a.email}</p>
@@ -107,7 +109,7 @@ export default function AdminsPage() {
       accessorFn: (a) => a.createdAt,
       cell: ({ row: { original: a } }) => {
         const d = toDate(a.createdAt);
-        return <span className="text-xs text-gray-500">{d ? format(d, 'MMM d, yyyy') : '—'}</span>;
+        return <span className="text-gray-500">{d ? format(d, 'MMM d, yyyy') : '—'}</span>;
       },
     },
     {
@@ -115,11 +117,11 @@ export default function AdminsPage() {
       header: 'Actions',
       enableSorting: false,
       cell: ({ row: { original: a } }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             title="Copy email"
             onClick={() => handleCopyEmail(a.email, a.uid)}
-            className="text-gray-600 transition-colors hover:text-gray-300"
+            className="cursor-pointer text-gray-600 transition-colors hover:text-gray-300"
           >
             {copiedUid === a.uid ? (
               <Check size={16} className="text-success-400" />
@@ -127,19 +129,27 @@ export default function AdminsPage() {
               <Copy size={16} />
             )}
           </button>
-          {a.isActive && (
+          {a.isActive ? (
             <button
               title="Deactivate admin"
               onClick={() => setDeactivateId(a.uid)}
-              className="hover:text-warning-400 text-gray-600 transition-colors"
+              className="hover:text-warning-400 cursor-pointer text-gray-600 transition-colors"
             >
               <UserMinus size={16} />
+            </button>
+          ) : (
+            <button
+              title="Reactivate admin"
+              onClick={() => setReactivateId(a.uid)}
+              className="hover:text-warning-400 cursor-pointer text-gray-600 transition-colors"
+            >
+              <UserCheck size={16} />
             </button>
           )}
           <button
             title="Delete admin"
             onClick={() => setDeleteId(a.uid)}
-            className="hover:text-danger-400 text-gray-600 transition-colors"
+            className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
           >
             <Trash2 size={16} />
           </button>
@@ -207,6 +217,26 @@ export default function AdminsPage() {
         confirmLabel="Deactivate"
         variant="danger"
         isLoading={deactivateAdmin.isPending}
+      />
+
+      {/* Reactivate confirm */}
+      <ConfirmDialog
+        isOpen={!!reactivateId}
+        onClose={() => setReactivateId(null)}
+        onConfirm={() =>
+          reactivateAdmin.mutate(reactivateId!, {
+            onSuccess: () => {
+              setReactivateId(null);
+              toast.success('Admin reactivated');
+            },
+            onError: (e) => toast.error(e.message),
+          })
+        }
+        title="Reactivate admin"
+        message="This admin will be marked active and allowed to access the system again."
+        confirmLabel="Reactivate"
+        variant="primary"
+        isLoading={reactivateAdmin.isPending}
       />
 
       {/* Delete confirm */}

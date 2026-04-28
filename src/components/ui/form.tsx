@@ -10,7 +10,7 @@ export const Label = forwardRef<HTMLLabelElement, LabelProps>(
   ({ children, required, className, ...props }, ref) => (
     <label
       ref={ref}
-      className={cn('mb-1.5 block text-sm font-medium text-gray-400 dark:text-gray-600', className)}
+      className={cn('mb-1.5 block text-sm font-medium text-gray-600 dark:text-gray-400', className)}
       {...props}
     >
       {children}
@@ -40,10 +40,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       <select
         ref={ref}
         className={cn(
-          'h-11 w-full appearance-none rounded-lg border bg-gray-900 px-4 py-2.5 text-sm text-gray-100 focus:ring-2 focus:outline-none dark:bg-gray-50 dark:text-gray-900',
+          'h-11 w-full appearance-none rounded-lg border bg-white px-4 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:bg-gray-900 dark:text-gray-100',
           error
             ? 'border-danger-500 focus:ring-danger-500/20'
-            : 'focus:border-brand-600 focus:ring-brand-600/20 border-gray-700 dark:border-gray-300',
+            : 'focus:border-brand-600 focus:ring-brand-600/20 border-gray-300 dark:border-gray-700',
           className
         )}
         {...props}
@@ -77,10 +77,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       <textarea
         ref={ref}
         className={cn(
-          'w-full rounded-lg border bg-gray-900 px-4 py-2.5 text-sm text-gray-100 placeholder:text-gray-600 focus:ring-2 focus:outline-none dark:bg-gray-50 dark:text-gray-900',
+          'w-full rounded-lg border bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-600 focus:ring-2 focus:outline-none dark:bg-gray-900 dark:text-gray-100',
           error
             ? 'border-danger-500 focus:ring-danger-500/20'
-            : 'focus:border-brand-600 focus:ring-brand-600/20 border-gray-700 dark:border-gray-300',
+            : 'focus:border-brand-600 focus:ring-brand-600/20 border-gray-300 dark:border-gray-700',
           className
         )}
         {...props}

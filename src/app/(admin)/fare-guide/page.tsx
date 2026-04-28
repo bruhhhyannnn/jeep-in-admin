@@ -63,14 +63,14 @@ export default function FareGuidePage() {
       accessorKey: 'stopPointName',
       header: 'Stop Point',
       cell: ({ getValue }) => (
-        <span className="font-medium text-gray-200 dark:text-gray-800">{String(getValue())}</span>
+        <span className="font-medium text-gray-800 dark:text-gray-200">{String(getValue())}</span>
       ),
     },
     {
       accessorKey: 'distanceKm',
       header: 'Distance (km)',
       cell: ({ getValue }) => (
-        <span className="font-mono text-sm text-gray-400 dark:text-gray-600">
+        <span className="font-mono text-sm text-gray-600 dark:text-gray-400">
           {Number(getValue()).toFixed(1)} km
         </span>
       ),
@@ -79,7 +79,7 @@ export default function FareGuidePage() {
       accessorKey: 'regularFare',
       header: 'Regular Fare',
       cell: ({ getValue }) => (
-        <span className="font-semibold text-gray-200 dark:text-gray-800">
+        <span className="font-semibold text-gray-800 dark:text-gray-200">
           ₱{Number(getValue()).toFixed(2)}
         </span>
       ),
@@ -98,19 +98,19 @@ export default function FareGuidePage() {
       header: 'Actions',
       enableSorting: false,
       cell: ({ row: { original: f } }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => {
               setEditId(f.id);
               setModalOpen(true);
             }}
-            className="hover:text-brand-400 text-gray-600 transition-colors"
+            className="hover:text-brand-400 cursor-pointer text-gray-600 transition-colors"
           >
             <Pencil size={16} />
           </button>
           <button
             onClick={() => setDeleteId(f.id)}
-            className="hover:text-danger-400 text-gray-600 transition-colors"
+            className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
           >
             <Trash2 size={16} />
           </button>
@@ -127,9 +127,15 @@ export default function FareGuidePage() {
         <PageBreadcrumb pageTitle="Fare Guide" />
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative w-full max-w-xs">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-1 flex-wrap items-center gap-3">
+            <Select
+              options={[...routes.map((r) => ({ value: r.id, label: r.name }))]}
+              value={filterRouteId}
+              onChange={(e) => setFilterRouteId(e.target.value)}
+              placeholder="All routes"
+            />
+            <div className="relative max-w-sm min-w-48 flex-1">
               <Search
                 size={15}
                 className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-600"
@@ -139,17 +145,6 @@ export default function FareGuidePage() {
                 className="pl-9"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-            <div className="w-56">
-              <Select
-                options={[
-                  { value: '', label: 'All routes' },
-                  ...routes.map((r) => ({ value: r.id, label: r.name })),
-                ]}
-                value={filterRouteId}
-                onChange={(e) => setFilterRouteId(e.target.value)}
-                placeholder="All routes"
               />
             </div>
           </div>
