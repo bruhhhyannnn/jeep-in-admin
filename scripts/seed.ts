@@ -18,7 +18,7 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
 // ─── CONFIGURE BEFORE RUNNING ───────────────────────────────────────────────
-const SUPER_ADMIN_UID = 'u2qZ9RDTkhhrvhO1NoDakWVBXL32'; // TODO: paste your Firebase Auth UID here
+const SUPER_ADMIN_UID = ''; // TODO: paste your Firebase Auth UID here
 const SUPER_ADMIN_EMAIL = 'jeepin.official@gmail.com'; // TODO: paste your super admin email here
 const SUPER_ADMIN_FIRST_NAME = 'Super';
 const SUPER_ADMIN_LAST_NAME = 'Admin';
