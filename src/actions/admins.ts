@@ -9,24 +9,25 @@ import {
   deleteDoc,
   query,
   orderBy,
-  Timestamp,
+  serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '@/lib';
+import { Timestamp } from 'firebase-admin/firestore';
+import { db, AdminCreateFormData, serializeDoc } from '@/lib';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
-import type { AdminProfile, AdminCreateFormData } from '@/types';
+import type { AdminProfile } from '@/types';
 
 const COL = 'admins';
 
 export async function getAdmins(): Promise<AdminProfile[]> {
   const q = query(collection(db, COL), orderBy('createdAt', 'desc'));
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ ...(d.data() as AdminProfile), uid: d.id }));
+  return snap.docs.map((d) => serializeDoc({ ...(d.data() as AdminProfile), uid: d.id }));
 }
 
 export async function getAdmin(uid: string): Promise<AdminProfile | null> {
   const snap = await getDoc(doc(db, COL, uid));
   if (!snap.exists()) return null;
-  return { ...(snap.data() as AdminProfile), uid: snap.id };
+  return serializeDoc({ ...(snap.data() as AdminProfile), uid: snap.id });
 }
 
 export async function createAdmin(data: AdminCreateFormData): Promise<string> {
@@ -74,9 +75,15 @@ export async function createAdmin(data: AdminCreateFormData): Promise<string> {
 }
 
 export async function deactivateAdmin(uid: string): Promise<void> {
-  await updateDoc(doc(db, COL, uid), { isActive: false, updatedAt: Timestamp.now() });
+  await updateDoc(doc(db, COL, uid), { isActive: false, updatedAt: serverTimestamp() });
   // Immediate session revoke
   await adminAuth.revokeRefreshTokens(uid);
+  await adminAuth.updateUser(uid, { disabled: true });
+}
+
+export async function reactivateAdmin(uid: string): Promise<void> {
+  await adminAuth.updateUser(uid, { disabled: false });
+  await updateDoc(doc(db, COL, uid), { isActive: true, updatedAt: serverTimestamp() });
 }
 
 export async function deleteAdmin(uid: string): Promise<void> {

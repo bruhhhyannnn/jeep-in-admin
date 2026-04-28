@@ -3,13 +3,13 @@ import {
   getDrivers,
   getDriver,
   createDriver,
-  updateDriver,
   deactivateDriver,
+  reactivateDriver,
   deleteDriver,
   assignJeepney,
   unassignJeepney,
 } from '@/actions';
-import type { DriverCreateFormData, DriverEditFormData } from '@/types';
+import { DriverCreateFormData } from '@/lib';
 
 export function useDrivers(organizationId: string) {
   return useQuery({
@@ -44,18 +44,6 @@ export function useCreateDriver() {
   });
 }
 
-export function useUpdateDriver() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ uid, data }: { uid: string; data: Partial<DriverEditFormData> }) =>
-      updateDriver(uid, data),
-    onSuccess: (_, { uid }) => {
-      qc.invalidateQueries({ queryKey: ['drivers'] });
-      qc.invalidateQueries({ queryKey: ['driver', uid] });
-    },
-  });
-}
-
 export function useDeactivateDriver() {
   const qc = useQueryClient();
   return useMutation({
@@ -64,11 +52,22 @@ export function useDeactivateDriver() {
   });
 }
 
+export function useReactivateDriver() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (uid: string) => reactivateDriver(uid),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['drivers'] }),
+  });
+}
+
 export function useDeleteDriver() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (uid: string) => deleteDriver(uid),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['drivers'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['drivers'] });
+      qc.invalidateQueries({ queryKey: ['jeepneys'] });
+    },
   });
 }
 
@@ -80,6 +79,7 @@ export function useAssignJeepney() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drivers'] });
       qc.invalidateQueries({ queryKey: ['jeepneys'] });
+      qc.invalidateQueries({ queryKey: ['jeepneys-unassigned'] });
     },
   });
 }
@@ -92,6 +92,7 @@ export function useUnassignJeepney() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drivers'] });
       qc.invalidateQueries({ queryKey: ['jeepneys'] });
+      qc.invalidateQueries({ queryKey: ['jeepneys-unassigned'] });
     },
   });
 }

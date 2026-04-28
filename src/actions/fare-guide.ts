@@ -12,8 +12,8 @@ import {
   orderBy,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from '@/lib';
-import type { FareGuide, FareGuideFormData } from '@/types';
+import { db, FareGuideFormData, serializeDoc } from '@/lib';
+import type { FareGuide } from '@/types';
 
 const COL = 'fare_guide';
 
@@ -23,7 +23,7 @@ export async function getFareGuide(routeId?: string): Promise<FareGuide[]> {
     : query(collection(db, COL), orderBy('distanceKm', 'asc'));
 
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ ...(d.data() as FareGuide), id: d.id }));
+  return snap.docs.map((d) => serializeDoc({ ...(d.data() as FareGuide), id: d.id }));
 }
 
 export async function createFareEntry(data: FareGuideFormData): Promise<string> {

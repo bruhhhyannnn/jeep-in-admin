@@ -3,7 +3,7 @@ import { z } from 'zod';
 /* ─── Auth ─── */
 export const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 /* ─── Driver ─── */
@@ -23,8 +23,14 @@ export const driverEditSchema = z.object({
 
 /* ─── Jeepney ─── */
 export const jeepneySchema = z.object({
-  plateNumber: z.string().min(1, 'Plate number is required'),
-  jeepneyNumber: z.string().min(1, 'Jeepney number is required'),
+  plateNumber: z
+    .string()
+    .min(1, 'Plate number is required')
+    .max(8, 'Plate number must be 8 characters or less'),
+  jeepneyNumber: z
+    .string()
+    .min(1, 'Jeepney number is required')
+    .max(2, 'Jeepney number must be 2 characters or less'),
 });
 
 /* ─── Fare Guide ─── */
@@ -54,7 +60,6 @@ export const adminCreateSchema = z.object({
 /* ─── Inferred Types ─── */
 export type SignInFormData = z.infer<typeof signInSchema>;
 export type DriverCreateFormData = z.infer<typeof driverCreateSchema>;
-export type DriverEditFormData = z.infer<typeof driverEditSchema>;
 export type JeepneyFormData = z.infer<typeof jeepneySchema>;
 export type FareGuideFormData = z.infer<typeof fareGuideSchema>;
 export type WorkingHoursFormData = z.infer<typeof workingHoursSchema>;

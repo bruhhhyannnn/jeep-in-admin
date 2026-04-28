@@ -1,6 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAdmins, getAdmin, createAdmin, deactivateAdmin, deleteAdmin } from '@/actions';
-import type { AdminCreateFormData } from '@/types';
+import {
+  getAdmins,
+  getAdmin,
+  createAdmin,
+  deactivateAdmin,
+  reactivateAdmin,
+  deleteAdmin,
+} from '@/actions';
+import { AdminCreateFormData } from '@/lib';
 
 export function useAdmins() {
   return useQuery({
@@ -29,6 +36,14 @@ export function useDeactivateAdmin() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (uid: string) => deactivateAdmin(uid),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admins'] }),
+  });
+}
+
+export function useReactivateAdmin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (uid: string) => reactivateAdmin(uid),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admins'] }),
   });
 }

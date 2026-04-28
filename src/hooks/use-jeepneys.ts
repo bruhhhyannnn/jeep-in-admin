@@ -7,7 +7,7 @@ import {
   updateJeepney,
   deleteJeepney,
 } from '@/actions';
-import type { JeepneyFormData } from '@/types';
+import { JeepneyFormData } from '@/lib';
 
 export function useJeepneys(organizationId: string) {
   return useQuery({

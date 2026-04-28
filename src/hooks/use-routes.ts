@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getRoute, getAllRoutes, updateWorkingHours } from '@/actions';
-import type { WorkingHoursFormData } from '@/types';
+import { WorkingHoursFormData } from '@/lib';
 
 export function useRoute(routeId?: string) {
   return useQuery({

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getFareGuide, createFareEntry, updateFareEntry, deleteFareEntry } from '@/actions';
-import type { FareGuideFormData } from '@/types';
+import { FareGuideFormData } from '@/lib';
 
 export function useFareGuide(routeId?: string) {
   return useQuery({

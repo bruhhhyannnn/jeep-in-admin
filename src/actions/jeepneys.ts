@@ -13,25 +13,26 @@ import {
   orderBy,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from '@/lib';
-import type { Jeepney, JeepneyFormData } from '@/types';
+import { db, JeepneyFormData, serializeDoc } from '@/lib';
+import type { Jeepney } from '@/types';
 
 const COL = 'jeepneys';
 
 export async function getJeepneys(organizationId: string): Promise<Jeepney[]> {
+  console.log('TEST');
   const q = query(
     collection(db, COL),
     where('organizationId', '==', organizationId),
     orderBy('createdAt', 'desc')
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ ...(d.data() as Jeepney), id: d.id }));
+  return snap.docs.map((d) => serializeDoc({ ...(d.data() as Jeepney), id: d.id }));
 }
 
 export async function getJeepney(id: string): Promise<Jeepney | null> {
   const snap = await getDoc(doc(db, COL, id));
   if (!snap.exists()) return null;
-  return { ...(snap.data() as Jeepney), id: snap.id };
+  return serializeDoc({ ...(snap.data() as Jeepney), id: snap.id });
 }
 
 export async function getUnassignedJeepneys(organizationId: string): Promise<Jeepney[]> {
@@ -42,7 +43,7 @@ export async function getUnassignedJeepneys(organizationId: string): Promise<Jee
     where('isActive', '==', true)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ ...(d.data() as Jeepney), id: d.id }));
+  return snap.docs.map((d) => serializeDoc({ ...(d.data() as Jeepney), id: d.id }));
 }
 
 export async function createJeepney(

@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { User } from 'firebase/auth';
 import type { AdminProfile, UserRole } from '@/types';
 
-export interface AuthUserProfile extends AdminProfile {
+interface AuthUserProfile extends AdminProfile {
   role: UserRole;
 }
 

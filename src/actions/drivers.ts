@@ -10,11 +10,12 @@ import {
   query,
   where,
   orderBy,
-  Timestamp,
+  serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '@/lib';
+import { Timestamp } from 'firebase-admin/firestore';
+import { db, DriverCreateFormData, serializeDoc } from '@/lib';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
-import type { DriverProfile, DriverCreateFormData, DriverEditFormData } from '@/types';
+import type { DriverProfile } from '@/types';
 
 const COL = 'drivers';
 
@@ -25,13 +26,13 @@ export async function getDrivers(organizationId: string): Promise<DriverProfile[
     orderBy('createdAt', 'desc')
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ ...(d.data() as DriverProfile), uid: d.id }));
+  return snap.docs.map((d) => serializeDoc({ ...(d.data() as DriverProfile), uid: d.id }));
 }
 
 export async function getDriver(uid: string): Promise<DriverProfile | null> {
   const snap = await getDoc(doc(db, COL, uid));
   if (!snap.exists()) return null;
-  return { ...(snap.data() as DriverProfile), uid: snap.id };
+  return serializeDoc({ ...(snap.data() as DriverProfile), uid: snap.id });
 }
 
 export async function createDriver(
@@ -86,15 +87,7 @@ export async function createDriver(
   return { uid, tempPassword: data.password };
 }
 
-export async function updateDriver(uid: string, data: Partial<DriverEditFormData>): Promise<void> {
-  await updateDoc(doc(db, COL, uid), {
-    ...data,
-    updatedAt: Timestamp.now(),
-  });
-}
-
 export async function deactivateDriver(uid: string): Promise<void> {
-  const now = Timestamp.now();
   // Mark inactive and unassign jeepney
   const driverSnap = await getDoc(doc(db, COL, uid));
   if (driverSnap.exists()) {
@@ -103,7 +96,7 @@ export async function deactivateDriver(uid: string): Promise<void> {
     if (driver.assignedJeepneyId) {
       await updateDoc(doc(db, 'jeepneys', driver.assignedJeepneyId), {
         assignedDriverId: null,
-        updatedAt: now,
+        updatedAt: serverTimestamp(),
       });
     }
   }
@@ -111,14 +104,31 @@ export async function deactivateDriver(uid: string): Promise<void> {
   await updateDoc(doc(db, COL, uid), {
     isActive: false,
     assignedJeepneyId: null,
-    updatedAt: now,
+    updatedAt: serverTimestamp(),
   });
 
   // Revoke Firebase Auth session (immediate kick-out)
   await adminAuth.revokeRefreshTokens(uid);
 }
 
+export async function reactivateDriver(uid: string): Promise<void> {
+  await adminAuth.updateUser(uid, { disabled: false });
+  await updateDoc(doc(db, COL, uid), { isActive: true, updatedAt: serverTimestamp() });
+}
+
 export async function deleteDriver(uid: string): Promise<void> {
+  // Clear jeepney assignment if any
+  const driverSnap = await getDoc(doc(db, COL, uid));
+  if (driverSnap.exists()) {
+    const driver = driverSnap.data() as DriverProfile;
+    if (driver.assignedJeepneyId) {
+      await updateDoc(doc(db, 'jeepneys', driver.assignedJeepneyId), {
+        assignedDriverId: null,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
+
   // Remove from Firestore
   await deleteDoc(doc(db, COL, uid));
   await adminDb.collection('users').doc(uid).delete();
@@ -128,8 +138,6 @@ export async function deleteDriver(uid: string): Promise<void> {
 }
 
 export async function assignJeepney(driverUid: string, jeepneyId: string): Promise<void> {
-  const now = Timestamp.now();
-
   // Clear old assignment on previous jeepney if any
   const driverSnap = await getDoc(doc(db, COL, driverUid));
   if (driverSnap.exists()) {
@@ -137,19 +145,30 @@ export async function assignJeepney(driverUid: string, jeepneyId: string): Promi
     if (driver.assignedJeepneyId && driver.assignedJeepneyId !== jeepneyId) {
       await updateDoc(doc(db, 'jeepneys', driver.assignedJeepneyId), {
         assignedDriverId: null,
-        updatedAt: now,
+        updatedAt: serverTimestamp(),
       });
     }
   }
 
   // Assign driver → jeepney
-  await updateDoc(doc(db, COL, driverUid), { assignedJeepneyId: jeepneyId, updatedAt: now });
+  await updateDoc(doc(db, COL, driverUid), {
+    assignedJeepneyId: jeepneyId,
+    updatedAt: serverTimestamp(),
+  });
   // Assign jeepney → driver
-  await updateDoc(doc(db, 'jeepneys', jeepneyId), { assignedDriverId: driverUid, updatedAt: now });
+  await updateDoc(doc(db, 'jeepneys', jeepneyId), {
+    assignedDriverId: driverUid,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function unassignJeepney(driverUid: string, jeepneyId: string): Promise<void> {
-  const now = Timestamp.now();
-  await updateDoc(doc(db, COL, driverUid), { assignedJeepneyId: null, updatedAt: now });
-  await updateDoc(doc(db, 'jeepneys', jeepneyId), { assignedDriverId: null, updatedAt: now });
+  await updateDoc(doc(db, COL, driverUid), {
+    assignedJeepneyId: null,
+    updatedAt: serverTimestamp(),
+  });
+  await updateDoc(doc(db, 'jeepneys', jeepneyId), {
+    assignedDriverId: null,
+    updatedAt: serverTimestamp(),
+  });
 }

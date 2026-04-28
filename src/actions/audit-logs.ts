@@ -1,7 +1,7 @@
 'use server';
 
 import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib';
+import { db, serializeDoc } from '@/lib';
 import type { AuditLog } from '@/types';
 
 const COL = 'audit_logs';
@@ -37,7 +37,7 @@ export async function getAuditLogs(
   }
 
   const allSnap = await getDocs(q);
-  let docs = allSnap.docs.map((d) => ({ ...(d.data() as AuditLog), id: d.id }));
+  let docs = allSnap.docs.map((d) => serializeDoc({ ...(d.data() as AuditLog), id: d.id }));
 
   // Client-side search filter (Firestore doesn't support full-text search)
   if (filters.search) {

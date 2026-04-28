@@ -1,18 +1,19 @@
 'use server';
 
 import { doc, getDoc, getDocs, collection, updateDoc, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib';
-import type { Route, WorkingHoursFormData } from '@/types';
+import { db, WorkingHoursFormData, serializeDoc } from '@/lib';
+import type { Route } from '@/types';
+import {} from '@/lib';
 
 export async function getRoute(routeId: string): Promise<Route | null> {
   const snap = await getDoc(doc(db, 'routes', routeId));
   if (!snap.exists()) return null;
-  return { ...(snap.data() as Route), id: snap.id };
+  return serializeDoc({ ...(snap.data() as Route), id: snap.id });
 }
 
 export async function getAllRoutes(): Promise<Route[]> {
   const snap = await getDocs(collection(db, 'routes'));
-  return snap.docs.map((d) => ({ ...(d.data() as Route), id: d.id }));
+  return snap.docs.map((d) => serializeDoc({ ...(d.data() as Route), id: d.id }));
 }
 
 export async function updateWorkingHours(
