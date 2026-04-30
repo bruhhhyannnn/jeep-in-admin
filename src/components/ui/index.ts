@@ -9,3 +9,4 @@ export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 export { DataTable } from './data-table';
 export { Pagination } from './pagination';
 export { Spinner, PageLoader, PageError } from './spinner';
+export * from './map';

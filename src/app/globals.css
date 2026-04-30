@@ -1,4 +1,6 @@
-﻿@import 'tailwindcss';
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
 @theme {
   /* ─── Brand: Dodger Blue ─── */
@@ -202,4 +204,13 @@ input[type='time']::-webkit-calendar-picker-indicator:hover {
 .dark input[type='time']::-webkit-calendar-picker-indicator:hover {
   filter: invert(1);
   opacity: 1;
+}
+
+@layer base {
+  .maplibregl-popup-content {
+    @apply rounded-none! bg-transparent! p-0! shadow-none!;
+  }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
 }
