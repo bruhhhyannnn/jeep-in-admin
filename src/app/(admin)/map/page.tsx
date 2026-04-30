@@ -31,29 +31,8 @@ import type { DriverLocation } from '@/types';
  * src/components/ui/map.tsx and add NEXT_PUBLIC_MAPBOX_TOKEN to .env.local
  */
 
-const DEFAULT_CENTER: [number, number] = [120.5936, 18.198];
-const DEFAULT_ZOOM = 12;
-
-/* Flies to selected driver on the map */
-function RealtimeLayer({
-  locations,
-  selectedDriver,
-}: {
-  locations: DriverLocation[];
-  selectedDriver: string | null;
-}) {
-  const { map, isLoaded } = useMap();
-
-  useEffect(() => {
-    if (!map || !isLoaded || !selectedDriver) return;
-    const loc = locations.find((l) => l.driverId === selectedDriver);
-    if (loc) {
-      map.flyTo({ center: [loc.longitude, loc.latitude], zoom: 15, duration: 800 });
-    }
-  }, [selectedDriver, map, isLoaded, locations]);
-
-  return null;
-}
+const DEFAULT_CENTER: [number, number] = [120.551474, 18.058174];
+const DEFAULT_ZOOM = 14.5;
 
 export default function MapPage() {
   const { userProfile } = useAuthStore();
@@ -107,25 +86,23 @@ export default function MapPage() {
         )}
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-5 text-xs text-gray-500">
-        <div className="flex items-center gap-1.5">
-          <div className="bg-brand-600 h-3.5 w-3.5 rounded-full border border-white" />
-          <span>Jeepney (live GPS)</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="bg-warning-400 h-3 w-3 rounded-full border border-white" />
-          <span>Stop point</span>
-        </div>
-      </div>
-
       <div className="flex flex-wrap gap-4">
-        <div
-          className="dark:shadow-theme-md-dark relative flex-1 overflow-hidden rounded-xl border border-gray-200 shadow-md dark:border-gray-800"
-          style={{ height: '500px' }}
-        >
+        <div className="dark:shadow-theme-md-dark relative h-72 min-w-80 flex-1 overflow-hidden rounded-xl border border-gray-200 shadow-md md:h-125 dark:border-gray-800">
           <Map center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM}>
             <MapControls />
+
+            {/* Legend */}
+            <div className=""></div>
+            <div className="absolute top-4 left-4 flex flex-wrap items-center gap-5 text-xs text-gray-500">
+              <div className="flex items-center gap-1.5">
+                <div className="bg-brand-600 h-3.5 w-3.5 animate-pulse rounded-full border border-white" />
+                <span>Jeepney (live GPS)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="bg-warning-400 h-3 w-3 rounded-full border border-white" />
+                <span>Stop point</span>
+              </div>
+            </div>
 
             {stopPoints.map((stop) => (
               <MapMarker key={stop.id} longitude={stop.longitude} latitude={stop.latitude}>
@@ -247,4 +224,25 @@ export default function MapPage() {
       </div>
     </div>
   );
+}
+
+/* Flies to selected driver on the map */
+function RealtimeLayer({
+  locations,
+  selectedDriver,
+}: {
+  locations: DriverLocation[];
+  selectedDriver: string | null;
+}) {
+  const { map, isLoaded } = useMap();
+
+  useEffect(() => {
+    if (!map || !isLoaded || !selectedDriver) return;
+    const loc = locations.find((l) => l.driverId === selectedDriver);
+    if (loc) {
+      map.flyTo({ center: [loc.longitude, loc.latitude], zoom: 15, duration: 800 });
+    }
+  }, [selectedDriver, map, isLoaded, locations]);
+
+  return null;
 }
