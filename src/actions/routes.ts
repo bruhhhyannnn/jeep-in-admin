@@ -1,18 +1,18 @@
 'use server';
 
-import { doc, getDoc, getDocs, collection, updateDoc, Timestamp } from 'firebase/firestore';
-import { db, WorkingHoursFormData, serializeDoc } from '@/lib';
+import { FieldValue } from 'firebase-admin/firestore';
+import { adminDb } from '@/lib/firebase-admin';
+import { WorkingHoursFormData, serializeDoc } from '@/lib';
 import type { Route } from '@/types';
-import {} from '@/lib';
 
 export async function getRoute(routeId: string): Promise<Route | null> {
-  const snap = await getDoc(doc(db, 'routes', routeId));
-  if (!snap.exists()) return null;
+  const snap = await adminDb.collection('routes').doc(routeId).get();
+  if (!snap.exists) return null;
   return serializeDoc({ ...(snap.data() as Route), id: snap.id });
 }
 
 export async function getAllRoutes(): Promise<Route[]> {
-  const snap = await getDocs(collection(db, 'routes'));
+  const snap = await adminDb.collection('routes').get();
   return snap.docs.map((d) => serializeDoc({ ...(d.data() as Route), id: d.id }));
 }
 
@@ -20,10 +20,13 @@ export async function updateWorkingHours(
   routeId: string,
   data: WorkingHoursFormData
 ): Promise<void> {
-  await updateDoc(doc(db, 'routes', routeId), {
-    workingHours: { start: data.start, end: data.end },
-    updatedAt: Timestamp.now(),
-  });
+  await adminDb
+    .collection('routes')
+    .doc(routeId)
+    .update({
+      workingHours: { start: data.start, end: data.end },
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 }
 
 /** Returns true if current time is within working hours for the given route */

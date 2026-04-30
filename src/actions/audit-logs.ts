@@ -1,17 +1,19 @@
 'use server';
 
-import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import { db, serializeDoc } from '@/lib';
+import { Timestamp } from 'firebase-admin/firestore';
+import type { Query } from 'firebase-admin/firestore';
+import { adminDb } from '@/lib/firebase-admin';
+import { serializeDoc } from '@/lib';
 import type { AuditLog } from '@/types';
 
 const COL = 'audit_logs';
 const PER_PAGE = 20;
 
 export interface AuditLogFilters {
-  organizationId?: string; // undefined = super admin sees all
-  actorRole?: string; // 'driver' | 'admin' | 'super_admin' | undefined
-  search?: string; // matches actorName, action, targetName
-  dateFrom?: string; // ISO date string "2025-01-01"
+  organizationId?: string;
+  actorRole?: string;
+  search?: string;
+  dateFrom?: string;
   dateTo?: string;
 }
 
@@ -19,24 +21,24 @@ export async function getAuditLogs(
   filters: AuditLogFilters = {},
   page = 1
 ): Promise<{ data: AuditLog[]; total: number; hasMore: boolean }> {
-  let q = query(collection(db, COL), orderBy('createdAt', 'desc'));
+  let q: Query = adminDb.collection(COL).orderBy('createdAt', 'desc');
 
   if (filters.organizationId) {
-    q = query(q, where('organizationId', '==', filters.organizationId));
+    q = q.where('organizationId', '==', filters.organizationId);
   }
   if (filters.actorRole) {
-    q = query(q, where('actorRole', '==', filters.actorRole));
+    q = q.where('actorRole', '==', filters.actorRole);
   }
   if (filters.dateFrom) {
-    q = query(q, where('createdAt', '>=', Timestamp.fromDate(new Date(filters.dateFrom))));
+    q = q.where('createdAt', '>=', Timestamp.fromDate(new Date(filters.dateFrom)));
   }
   if (filters.dateTo) {
     const to = new Date(filters.dateTo);
     to.setHours(23, 59, 59, 999);
-    q = query(q, where('createdAt', '<=', Timestamp.fromDate(to)));
+    q = q.where('createdAt', '<=', Timestamp.fromDate(to));
   }
 
-  const allSnap = await getDocs(q);
+  const allSnap = await q.get();
   let docs = allSnap.docs.map((d) => serializeDoc({ ...(d.data() as AuditLog), id: d.id }));
 
   // Client-side search filter (Firestore doesn't support full-text search)

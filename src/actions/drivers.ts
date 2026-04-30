@@ -1,37 +1,24 @@
 'use server';
 
-import {
-  collection,
-  doc,
-  getDocs,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { Timestamp } from 'firebase-admin/firestore';
-import { db, DriverCreateFormData, serializeDoc } from '@/lib';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { DriverCreateFormData, serializeDoc } from '@/lib';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import type { DriverProfile } from '@/types';
 
 const COL = 'drivers';
 
 export async function getDrivers(organizationId: string): Promise<DriverProfile[]> {
-  const q = query(
-    collection(db, COL),
-    where('organizationId', '==', organizationId),
-    orderBy('createdAt', 'desc')
-  );
-  const snap = await getDocs(q);
+  const snap = await adminDb
+    .collection(COL)
+    .where('organizationId', '==', organizationId)
+    .orderBy('createdAt', 'desc')
+    .get();
   return snap.docs.map((d) => serializeDoc({ ...(d.data() as DriverProfile), uid: d.id }));
 }
 
 export async function getDriver(uid: string): Promise<DriverProfile | null> {
-  const snap = await getDoc(doc(db, COL, uid));
-  if (!snap.exists()) return null;
+  const snap = await adminDb.collection(COL).doc(uid).get();
+  if (!snap.exists) return null;
   return serializeDoc({ ...(snap.data() as DriverProfile), uid: snap.id });
 }
 
@@ -89,22 +76,22 @@ export async function createDriver(
 
 export async function deactivateDriver(uid: string): Promise<void> {
   // Mark inactive and unassign jeepney
-  const driverSnap = await getDoc(doc(db, COL, uid));
-  if (driverSnap.exists()) {
-    const driver = driverSnap.data() as DriverProfile;
+  const snap = await adminDb.collection(COL).doc(uid).get();
+  if (snap.exists) {
+    const driver = snap.data() as DriverProfile;
+
     // If assigned to a jeepney, clear that assignment too
     if (driver.assignedJeepneyId) {
-      await updateDoc(doc(db, 'jeepneys', driver.assignedJeepneyId), {
+      await adminDb.collection('jeepneys').doc(driver.assignedJeepneyId).update({
         assignedDriverId: null,
-        updatedAt: serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     }
   }
-
-  await updateDoc(doc(db, COL, uid), {
+  await adminDb.collection(COL).doc(uid).update({
     isActive: false,
     assignedJeepneyId: null,
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 
   // Revoke Firebase Auth session (immediate kick-out)
@@ -113,24 +100,27 @@ export async function deactivateDriver(uid: string): Promise<void> {
 
 export async function reactivateDriver(uid: string): Promise<void> {
   await adminAuth.updateUser(uid, { disabled: false });
-  await updateDoc(doc(db, COL, uid), { isActive: true, updatedAt: serverTimestamp() });
+  await adminDb
+    .collection(COL)
+    .doc(uid)
+    .update({ isActive: true, updatedAt: FieldValue.serverTimestamp() });
 }
 
 export async function deleteDriver(uid: string): Promise<void> {
   // Clear jeepney assignment if any
-  const driverSnap = await getDoc(doc(db, COL, uid));
-  if (driverSnap.exists()) {
-    const driver = driverSnap.data() as DriverProfile;
+  const snap = await adminDb.collection(COL).doc(uid).get();
+  if (snap.exists) {
+    const driver = snap.data() as DriverProfile;
     if (driver.assignedJeepneyId) {
-      await updateDoc(doc(db, 'jeepneys', driver.assignedJeepneyId), {
+      await adminDb.collection('jeepneys').doc(driver.assignedJeepneyId).update({
         assignedDriverId: null,
-        updatedAt: serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     }
   }
 
   // Remove from Firestore
-  await deleteDoc(doc(db, COL, uid));
+  await adminDb.collection(COL).doc(uid).delete();
   await adminDb.collection('users').doc(uid).delete();
 
   // Delete Firebase Auth account
@@ -139,36 +129,36 @@ export async function deleteDriver(uid: string): Promise<void> {
 
 export async function assignJeepney(driverUid: string, jeepneyId: string): Promise<void> {
   // Clear old assignment on previous jeepney if any
-  const driverSnap = await getDoc(doc(db, COL, driverUid));
-  if (driverSnap.exists()) {
-    const driver = driverSnap.data() as DriverProfile;
+  const snap = await adminDb.collection(COL).doc(driverUid).get();
+  if (snap.exists) {
+    const driver = snap.data() as DriverProfile;
     if (driver.assignedJeepneyId && driver.assignedJeepneyId !== jeepneyId) {
-      await updateDoc(doc(db, 'jeepneys', driver.assignedJeepneyId), {
+      await adminDb.collection('jeepneys').doc(driver.assignedJeepneyId).update({
         assignedDriverId: null,
-        updatedAt: serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     }
   }
 
   // Assign driver → jeepney
-  await updateDoc(doc(db, COL, driverUid), {
+  await adminDb.collection(COL).doc(driverUid).update({
     assignedJeepneyId: jeepneyId,
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
   // Assign jeepney → driver
-  await updateDoc(doc(db, 'jeepneys', jeepneyId), {
+  await adminDb.collection('jeepneys').doc(jeepneyId).update({
     assignedDriverId: driverUid,
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 }
 
 export async function unassignJeepney(driverUid: string, jeepneyId: string): Promise<void> {
-  await updateDoc(doc(db, COL, driverUid), {
+  await adminDb.collection(COL).doc(driverUid).update({
     assignedJeepneyId: null,
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
-  await updateDoc(doc(db, 'jeepneys', jeepneyId), {
+  await adminDb.collection('jeepneys').doc(jeepneyId).update({
     assignedDriverId: null,
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 }
