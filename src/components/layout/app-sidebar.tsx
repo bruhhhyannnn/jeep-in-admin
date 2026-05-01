@@ -8,6 +8,7 @@ import {
   Users,
   Bus,
   Map,
+  MapPin,
   Clock,
   ScrollText,
   UserCog,
@@ -30,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: <Users size={20} />, name: 'Drivers', path: '/drivers' },
   { icon: <Bus size={20} />, name: 'Jeepneys', path: '/jeepneys' },
   { icon: <Map size={20} />, name: 'Live Map', path: '/map' },
+  { icon: <MapPin size={20} />, name: 'Stop Points', path: '/stop-points' },
   { icon: <Clock size={20} />, name: 'Working Hours', path: '/working-hours' },
   { icon: <ScrollText size={20} />, name: 'Audit Logs', path: '/audit-logs' },
   // Super admin only

@@ -94,6 +94,7 @@ export interface Route {
 export interface StopPoint {
   id: string;
   name: string;
+  address?: string;
   routeId: string;
   latitude: number;
   longitude: number;

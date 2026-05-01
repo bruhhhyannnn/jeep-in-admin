@@ -48,6 +48,15 @@ export const workingHoursSchema = z.object({
   end: z.string().min(1, 'End time is required'),
 });
 
+/* ─── Stop Point ─── */
+export const stopPointSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  address: z.string().optional(),
+  latitude: z.coerce.number().min(-90, 'Invalid latitude').max(90, 'Invalid latitude'),
+  longitude: z.coerce.number().min(-180, 'Invalid longitude').max(180, 'Invalid longitude'),
+  isActive: z.boolean().default(true),
+});
+
 /* ─── Admin Account (created by super admin) ─── */
 export const adminCreateSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -63,4 +72,5 @@ export type DriverCreateFormData = z.infer<typeof driverCreateSchema>;
 export type JeepneyFormData = z.infer<typeof jeepneySchema>;
 export type FareGuideFormData = z.infer<typeof fareGuideSchema>;
 export type WorkingHoursFormData = z.infer<typeof workingHoursSchema>;
+export type StopPointFormData = z.infer<typeof stopPointSchema>;
 export type AdminCreateFormData = z.infer<typeof adminCreateSchema>;
