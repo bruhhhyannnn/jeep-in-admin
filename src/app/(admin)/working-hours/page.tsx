@@ -86,7 +86,7 @@ export default function WorkingHoursPage() {
           </div>
 
           {/* Edit form */}
-          <div className="dark:shadow-theme-md-dark max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-950">
+          <div className="dark:shadow-theme-md-dark max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-800 dark:bg-gray-900">
             <h3 className="mb-5 text-sm font-semibold text-gray-800 dark:text-gray-200">
               Set Working Hours
             </h3>

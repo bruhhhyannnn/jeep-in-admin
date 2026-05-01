@@ -56,6 +56,7 @@ export default function StopPointsPage() {
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [selectedDirection, setSelectedDirection] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -68,9 +69,9 @@ export default function StopPointsPage() {
     return () => clearTimeout(t);
   }, [query]);
 
-  const filtered = debouncedQuery
-    ? stopPoints.filter((s) => s.name.toLowerCase().includes(debouncedQuery.toLowerCase()))
-    : stopPoints;
+  const filtered = stopPoints
+    .filter((s) => !debouncedQuery || s.name.toLowerCase().includes(debouncedQuery.toLowerCase()))
+    .filter((s) => !selectedDirection || s.routeDirection === selectedDirection);
 
   const handleClose = () => {
     setModalOpen(false);
@@ -162,6 +163,16 @@ export default function StopPointsPage() {
                 placeholder="Select route…"
               />
             )}
+            {directions.length > 0 && (
+              <Select
+                options={[
+                  { value: '', label: 'All directions' },
+                  ...directions.map((d) => ({ value: d, label: formatDirection(d) })),
+                ]}
+                value={selectedDirection}
+                onChange={(e) => setSelectedDirection(e.target.value)}
+              />
+            )}
             <div className="relative max-w-sm min-w-48 flex-1">
               <Search
                 size={15}
@@ -185,6 +196,7 @@ export default function StopPointsPage() {
           data={filtered}
           loading={isPending || isFetching}
           emptyMessage="No stop points found"
+          pageSize={15}
         />
       </div>
 
@@ -379,7 +391,7 @@ function StopPointForm({
                 onDragEnd={({ lng, lat }) => handlePick(lng, lat)}
               >
                 <MarkerContent>
-                  <div className="bg-warning-400 flex h-8 w-8 items-center justify-center rounded-full border-2 border-gray-300 shadow-lg dark:border-gray-700">
+                  <div className="bg-warning-400 dark:shadow-theme-lg-dark flex h-8 w-8 animate-pulse items-center justify-center rounded-full border-2 border-gray-300 dark:border-gray-700">
                     <MapPin size={14} className="text-white" />
                   </div>
                 </MarkerContent>

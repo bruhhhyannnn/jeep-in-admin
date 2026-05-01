@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
@@ -48,7 +48,7 @@ export function Modal({ isOpen, onClose, children, title, className }: ModalProp
   return (
     <div
       className={cn(
-        'fixed inset-0 z-50 flex items-center justify-center p-4',
+        'fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4',
         !visible && 'pointer-events-none'
       )}
     >
@@ -60,17 +60,23 @@ export function Modal({ isOpen, onClose, children, title, className }: ModalProp
         )}
         onClick={onClose}
       />
+
       {/* Panel */}
       <div
         className={cn(
-          'relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl transition-all duration-200 dark:border-gray-800 dark:bg-gray-950',
-          visible ? 'scale-100 opacity-100' : 'scale-95 opacity-0',
+          'relative flex w-full flex-col bg-white transition-all duration-200 dark:bg-gray-950',
+          // Mobile: full screen, no rounded corners
+          'h-dvh rounded-none',
+          // Desktop: constrained modal
+          'sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-2xl sm:border sm:border-gray-200 sm:shadow-2xl sm:dark:border-gray-800',
+          visible ? 'opacity-100 sm:scale-100' : 'opacity-0 sm:scale-95',
           className
         )}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Fixed header */}
         {title && (
-          <div className="mb-5 flex items-center justify-between">
+          <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
             <button
               onClick={onClose}
@@ -80,7 +86,9 @@ export function Modal({ isOpen, onClose, children, title, className }: ModalProp
             </button>
           </div>
         )}
-        {children}
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-6">{children}</div>
       </div>
     </div>
   );

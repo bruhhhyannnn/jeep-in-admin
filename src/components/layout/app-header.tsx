@@ -58,7 +58,7 @@ export function AppHeader() {
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen((p) => !p)}
-              className="dropdown-toggle flex items-center gap-2 rounded-lg px-2 py-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900"
+              className="dropdown-toggle flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900"
             >
               <div className="bg-brand-600 flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white">
                 {displayName.charAt(0).toUpperCase()}
