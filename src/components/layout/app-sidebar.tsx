@@ -13,6 +13,7 @@ import {
   ScrollText,
   UserCog,
   BookOpen,
+  Route,
   ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib';
@@ -35,8 +36,9 @@ const NAV_ITEMS: NavItem[] = [
   { icon: <Clock size={20} />, name: 'Working Hours', path: '/working-hours' },
   { icon: <ScrollText size={20} />, name: 'Audit Logs', path: '/audit-logs' },
   // Super admin only
-  { icon: <UserCog size={20} />, name: 'Admins', path: '/admins', superAdminOnly: true },
   { icon: <BookOpen size={20} />, name: 'Fare Guide', path: '/fare-guide', superAdminOnly: true },
+  { icon: <UserCog size={20} />, name: 'Admins', path: '/admins', superAdminOnly: true },
+  { icon: <Route size={20} />, name: 'Routes', path: '/routes', superAdminOnly: true },
 ];
 
 export function AppSidebar() {

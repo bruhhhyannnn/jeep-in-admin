@@ -1,8 +1,8 @@
 'use server';
 
-import { FieldValue } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
-import { WorkingHoursFormData, serializeDoc } from '@/lib';
+import { WorkingHoursFormData, RouteFormData, serializeDoc } from '@/lib';
 import type { Route } from '@/types';
 
 export async function getRoute(routeId: string): Promise<Route | null> {
@@ -27,6 +27,35 @@ export async function updateWorkingHours(
       workingHours: { start: data.start, end: data.end },
       updatedAt: FieldValue.serverTimestamp(),
     });
+}
+
+export async function createRoute(data: RouteFormData): Promise<string> {
+  const now = Timestamp.now();
+  const ref = await adminDb.collection('routes').add({
+    name: data.name,
+    description: data.description ?? null,
+    directions: data.directions,
+    isActive: data.isActive,
+    workingHours: { start: data.workingHours.start, end: data.workingHours.end },
+    createdAt: now,
+    updatedAt: now,
+  });
+  return ref.id;
+}
+
+export async function updateRoute(routeId: string, data: RouteFormData): Promise<void> {
+  await adminDb.collection('routes').doc(routeId).update({
+    name: data.name,
+    description: data.description ?? null,
+    directions: data.directions,
+    isActive: data.isActive,
+    workingHours: { start: data.workingHours.start, end: data.workingHours.end },
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+}
+
+export async function deleteRoute(routeId: string): Promise<void> {
+  await adminDb.collection('routes').doc(routeId).delete();
 }
 
 /** Returns true if current time is within working hours for the given route */
