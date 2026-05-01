@@ -29,10 +29,9 @@ export async function createStopPoint(data: StopPointFormData, routeId: string):
     name: data.name,
     address: data.address ?? null,
     routeId,
+    routeDirection: data.routeDirection,
     latitude: data.latitude,
     longitude: data.longitude,
-    distanceFromTerminalKm: 0,
-    order: 0,
     isActive: data.isActive,
     createdAt: now,
     updatedAt: now,
@@ -40,14 +39,14 @@ export async function createStopPoint(data: StopPointFormData, routeId: string):
   return ref.id;
 }
 
-export async function updateStopPoint(
-  id: string,
-  data: Partial<StopPointFormData>
-): Promise<void> {
-  await adminDb.collection(COL).doc(id).update({
-    ...data,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+export async function updateStopPoint(id: string, data: Partial<StopPointFormData>): Promise<void> {
+  await adminDb
+    .collection(COL)
+    .doc(id)
+    .update({
+      ...data,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 }
 
 export async function deleteStopPoint(id: string): Promise<void> {

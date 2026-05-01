@@ -81,6 +81,7 @@ export interface Route {
   id: string;
   name: string;
   description: string | null;
+  directions: string[];
   isActive: boolean;
   workingHours: {
     start: string; // "06:00"
@@ -96,10 +97,9 @@ export interface StopPoint {
   name: string;
   address?: string;
   routeId: string;
+  routeDirection: string;
   latitude: number;
   longitude: number;
-  distanceFromTerminalKm: number;
-  order: number;
   isActive: boolean;
 }
 

@@ -52,6 +52,7 @@ async function seed() {
   await routeRef.set({
     name: 'Laoag–Batac–Paoay',
     description: 'Main route covering Laoag, Batac, and Paoay in Ilocos Norte',
+    directions: ['laoag_paoay', 'paoay_laoag'],
     isActive: true,
     workingHours: {
       start: '06:00',

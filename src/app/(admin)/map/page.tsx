@@ -113,9 +113,6 @@ export default function MapPage() {
                 <MarkerPopup>
                   <div className="space-y-0.5">
                     <p className="text-sm font-semibold">{stop.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {stop.distanceFromTerminalKm} km from terminal
-                    </p>
                   </div>
                 </MarkerPopup>
               </MapMarker>

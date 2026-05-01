@@ -52,6 +52,7 @@ export const workingHoursSchema = z.object({
 export const stopPointSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   address: z.string().optional(),
+  routeDirection: z.string().min(1, 'Direction is required'),
   latitude: z.coerce.number().min(-90, 'Invalid latitude').max(90, 'Invalid latitude'),
   longitude: z.coerce.number().min(-180, 'Invalid longitude').max(180, 'Invalid longitude'),
   isActive: z.boolean().default(true),

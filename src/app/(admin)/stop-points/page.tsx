@@ -51,6 +51,9 @@ export default function StopPointsPage() {
 
   const routeId = isSuperAdmin ? selectedRouteId : adminRouteId;
 
+  const currentRoute = allRoutes.find((r) => r.id === routeId);
+  const directions = currentRoute?.directions ?? [];
+
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -84,6 +87,16 @@ export default function StopPointsPage() {
           <p className="font-medium text-gray-800 dark:text-gray-200">{s.name}</p>
           {s.address && <p className="text-xs text-gray-500">{s.address}</p>}
         </div>
+      ),
+    },
+    {
+      id: 'direction',
+      header: 'Direction',
+      accessorFn: (s) => s.routeDirection,
+      cell: ({ row: { original: s } }) => (
+        <Badge color="info" size="sm">
+          {formatDirection(s.routeDirection)}
+        </Badge>
       ),
     },
     {
@@ -182,6 +195,7 @@ export default function StopPointsPage() {
       >
         <StopPointForm
           routeId={routeId}
+          directions={directions}
           editId={editId}
           stopPoints={stopPoints}
           onSuccess={() => {
@@ -237,12 +251,14 @@ function MapClickHandler({ onPick }: { onPick: (lng: number, lat: number) => voi
 /* ─── Stop Point Form (create & edit) ─── */
 function StopPointForm({
   routeId,
+  directions,
   editId,
   stopPoints,
   onSuccess,
   onCancel,
 }: {
   routeId: string;
+  directions: string[];
   editId: string | null;
   stopPoints: StopPoint[];
   onSuccess: () => void;
@@ -274,6 +290,7 @@ function StopPointForm({
       reset({
         name: current.name,
         address: current.address ?? '',
+        routeDirection: current.routeDirection,
         latitude: current.latitude,
         longitude: current.longitude,
         isActive: current.isActive,
@@ -326,6 +343,18 @@ function StopPointForm({
         <Input placeholder="e.g. National Highway, Batac City" {...register('address')} />
       </div>
 
+      <div>
+        <Label required>Direction</Label>
+        <Select
+          options={directions.map((d) => ({ value: d, label: formatDirection(d) }))}
+          placeholder={directions.length === 0 ? 'Select a route first' : 'Select direction…'}
+          disabled={directions.length === 0}
+          error={!!errors.routeDirection}
+          hint={errors.routeDirection?.message}
+          {...register('routeDirection')}
+        />
+      </div>
+
       {/* Hidden inputs so RHF registers lat/lng for validation */}
       <input type="hidden" {...register('latitude')} />
       <input type="hidden" {...register('longitude')} />
@@ -336,7 +365,7 @@ function StopPointForm({
           <span className="text-xs font-normal text-gray-500">— click map to place pin</span>
         </Label>
         <div
-          className="mt-1 overflow-hidden rounded-xl border border-gray-800 dark:border-gray-200"
+          className="mt-1 overflow-hidden rounded-xl border border-gray-300 dark:border-gray-700"
           style={{ height: 240 }}
         >
           <Map center={mapCenter} zoom={mapZoom}>
@@ -390,4 +419,11 @@ function StopPointForm({
       </div>
     </form>
   );
+}
+
+function formatDirection(dir: string): string {
+  return dir
+    .split('_')
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(' → ');
 }
