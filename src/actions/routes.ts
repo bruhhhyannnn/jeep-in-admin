@@ -1,7 +1,7 @@
 'use server';
 
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { WorkingHoursFormData, RouteFormData, serializeDoc } from '@/lib';
 import type { Route } from '@/types';
 
@@ -58,7 +58,35 @@ export async function updateRoute(routeId: string, data: RouteFormData): Promise
 }
 
 export async function deleteRoute(routeId: string): Promise<void> {
-  await adminDb.collection('routes').doc(routeId).delete();
+  const batch = adminDb.batch();
+
+  // Stop points
+  const stopsSnap = await adminDb.collection('stop_points').where('routeId', '==', routeId).get();
+  stopsSnap.docs.forEach((d) => batch.delete(d.ref));
+
+  // Fare guide entries
+  const fareSnap = await adminDb.collection('fare_guide').where('routeId', '==', routeId).get();
+  fareSnap.docs.forEach((d) => batch.delete(d.ref));
+
+  // Unassign organizations that reference this route
+  const orgsSnap = await adminDb.collection('organizations').where('routeId', '==', routeId).get();
+  orgsSnap.docs.forEach((d) => batch.update(d.ref, { routeId: null, updatedAt: FieldValue.serverTimestamp() }));
+
+  // Delete drivers on this route (no route reassignment UI exists)
+  const driversSnap = await adminDb.collection('drivers').where('routeId', '==', routeId).get();
+  const driverUids = driversSnap.docs.map((d) => d.id);
+  driversSnap.docs.forEach((d) => {
+    batch.delete(d.ref);
+    batch.delete(adminDb.collection('users').doc(d.id));
+  });
+
+  // Route itself
+  batch.delete(adminDb.collection('routes').doc(routeId));
+
+  await batch.commit();
+
+  // Delete Firebase Auth accounts for deleted drivers
+  await Promise.all(driverUids.map((uid) => adminAuth.deleteUser(uid).catch(() => null)));
 }
 
 /** Returns true if current time is within working hours for the given route */

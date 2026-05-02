@@ -16,18 +16,25 @@ import {
   DataTable,
   PageError,
 } from '@/components/ui';
+import { useAuthStore } from '@/store';
 import {
   useFareGuide,
   useCreateFareEntry,
   useUpdateFareEntry,
   useDeleteFareEntry,
   useAllRoutes,
+  useOrganization,
 } from '@/hooks';
 import { fareGuideSchema, type FareGuideFormData } from '@/lib';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { FareGuide } from '@/types';
 
 export default function FareGuidePage() {
+  const { userProfile } = useAuthStore();
+  const isSuperAdmin = userProfile?.role === 'super_admin';
+  const orgId = userProfile?.organizationId ?? '';
+  const { data: org } = useOrganization(isSuperAdmin ? undefined : orgId);
+
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [filterRouteId, setFilterRouteId] = useState('');
@@ -36,12 +43,14 @@ export default function FareGuidePage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: routes = [] } = useAllRoutes();
+
+  const effectiveRouteId = isSuperAdmin ? filterRouteId : (org?.routeId ?? '');
   const {
     data: fareGuide = [],
     isPending,
     isFetching,
     error,
-  } = useFareGuide(filterRouteId || undefined);
+  } = useFareGuide(effectiveRouteId || undefined);
   const deleteFare = useDeleteFareEntry();
 
   useEffect(() => {
@@ -129,12 +138,14 @@ export default function FareGuidePage() {
         {/* Filters */}
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-1 flex-wrap items-center gap-3">
-            <Select
-              options={[...routes.map((r) => ({ value: r.id, label: r.name }))]}
-              value={filterRouteId}
-              onChange={(e) => setFilterRouteId(e.target.value)}
-              placeholder="All routes"
-            />
+            {isSuperAdmin && (
+              <Select
+                options={routes.map((r) => ({ value: r.id, label: r.name }))}
+                value={filterRouteId}
+                onChange={(e) => setFilterRouteId(e.target.value)}
+                placeholder="All routes"
+              />
+            )}
             <div className="relative max-w-sm min-w-48 flex-1">
               <Search
                 size={15}
@@ -171,6 +182,7 @@ export default function FareGuidePage() {
           editId={editId}
           fareGuide={fareGuide}
           routes={routes}
+          lockedRouteId={isSuperAdmin ? undefined : effectiveRouteId}
           onSuccess={() => {
             handleClose();
             toast.success(editId ? 'Fare entry updated' : 'Fare entry created');
@@ -205,12 +217,14 @@ function FareGuideForm({
   editId,
   fareGuide,
   routes,
+  lockedRouteId,
   onSuccess,
   onCancel,
 }: {
   editId: string | null;
   fareGuide: FareGuide[];
   routes: { id: string; name: string }[];
+  lockedRouteId?: string;
   onSuccess: () => void;
   onCancel: () => void;
 }) {
@@ -228,16 +242,14 @@ function FareGuideForm({
   } = useForm<FareGuideFormData>({ resolver: zodResolver(fareGuideSchema) });
 
   useEffect(() => {
-    if (current) {
-      reset({
-        routeId: current.routeId,
-        stopPointName: current.stopPointName,
-        distanceKm: current.distanceKm,
-        regularFare: current.regularFare,
-        discountedFare: current.discountedFare,
-      });
-    }
-  }, [current, reset]);
+    reset({
+      routeId: current?.routeId ?? lockedRouteId ?? '',
+      stopPointName: current?.stopPointName ?? '',
+      distanceKm: current?.distanceKm ?? 0,
+      regularFare: current?.regularFare ?? 0,
+      discountedFare: current?.discountedFare ?? 0,
+    });
+  }, [current, lockedRouteId, reset]);
 
   const onSubmit = handleSubmit((data) => {
     if (isEdit) {
@@ -254,16 +266,18 @@ function FareGuideForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <Label required>Route</Label>
-        <Select
-          options={routes.map((r) => ({ value: r.id, label: r.name }))}
-          placeholder="Select route…"
-          error={!!errors.routeId}
-          hint={errors.routeId?.message}
-          {...register('routeId')}
-        />
-      </div>
+      {!lockedRouteId && (
+        <div>
+          <Label required>Route</Label>
+          <Select
+            options={routes.map((r) => ({ value: r.id, label: r.name }))}
+            placeholder="Select route…"
+            error={!!errors.routeId}
+            hint={errors.routeId?.message}
+            {...register('routeId')}
+          />
+        </div>
+      )}
 
       <div>
         <Label required>Stop Point Name</Label>

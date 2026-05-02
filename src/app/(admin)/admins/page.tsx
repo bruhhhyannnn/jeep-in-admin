@@ -340,6 +340,7 @@ function AdminCreateForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
       </div>
 
       <div>
+        {/* TODO: UI improvement of using eye icon */}
         <Label required>Temporary Password</Label>
         <Input
           type="password"

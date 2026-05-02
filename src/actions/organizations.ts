@@ -1,7 +1,7 @@
 'use server';
 
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { serializeDoc, type OrganizationFormData } from '@/lib';
 import type { Organization } from '@/types';
 
@@ -42,5 +42,40 @@ export async function updateOrganization(id: string, data: OrganizationFormData)
 }
 
 export async function deleteOrganization(id: string): Promise<void> {
-  await adminDb.collection(COL).doc(id).delete();
+  const batch = adminDb.batch();
+
+  // Jeepneys
+  const jeepneysSnap = await adminDb.collection('jeepneys').where('organizationId', '==', id).get();
+  jeepneysSnap.docs.forEach((d) => batch.delete(d.ref));
+
+  // Audit logs
+  const logsSnap = await adminDb.collection('audit_logs').where('organizationId', '==', id).get();
+  logsSnap.docs.forEach((d) => batch.delete(d.ref));
+
+  // Admins — collect UIDs for Auth deletion
+  const adminsSnap = await adminDb.collection('admins').where('organizationId', '==', id).get();
+  const adminUids = adminsSnap.docs.map((d) => d.id);
+  adminsSnap.docs.forEach((d) => {
+    batch.delete(d.ref);
+    batch.delete(adminDb.collection('users').doc(d.id));
+  });
+
+  // Drivers — collect UIDs for Auth deletion
+  const driversSnap = await adminDb.collection('drivers').where('organizationId', '==', id).get();
+  const driverUids = driversSnap.docs.map((d) => d.id);
+  driversSnap.docs.forEach((d) => {
+    batch.delete(d.ref);
+    batch.delete(adminDb.collection('users').doc(d.id));
+  });
+
+  // Organization itself
+  batch.delete(adminDb.collection(COL).doc(id));
+
+  await batch.commit();
+
+  // Delete Firebase Auth accounts (outside batch — Auth API is separate)
+  await Promise.all([
+    ...adminUids.map((uid) => adminAuth.deleteUser(uid).catch(() => null)),
+    ...driverUids.map((uid) => adminAuth.deleteUser(uid).catch(() => null)),
+  ]);
 }

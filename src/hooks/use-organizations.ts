@@ -47,6 +47,13 @@ export function useDeleteOrganization() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteOrganization(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['organizations'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['organizations'] });
+      qc.invalidateQueries({ queryKey: ['jeepneys'] });
+      qc.invalidateQueries({ queryKey: ['jeepneys-unassigned'] });
+      qc.invalidateQueries({ queryKey: ['drivers'] });
+      qc.invalidateQueries({ queryKey: ['admins'] });
+      qc.invalidateQueries({ queryKey: ['audit-logs'] });
+    },
   });
 }
