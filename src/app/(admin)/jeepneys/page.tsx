@@ -186,7 +186,10 @@ export default function JeepneysPage() {
               />
             )}
             <div className="relative max-w-sm min-w-48 flex-1">
-              <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-600" />
+              <Search
+                size={15}
+                className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-600"
+              />
               <Input
                 placeholder="Search by plate or number…"
                 className="pl-9"

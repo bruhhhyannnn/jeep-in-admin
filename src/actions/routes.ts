@@ -70,7 +70,9 @@ export async function deleteRoute(routeId: string): Promise<void> {
 
   // Unassign organizations that reference this route
   const orgsSnap = await adminDb.collection('organizations').where('routeId', '==', routeId).get();
-  orgsSnap.docs.forEach((d) => batch.update(d.ref, { routeId: null, updatedAt: FieldValue.serverTimestamp() }));
+  orgsSnap.docs.forEach((d) =>
+    batch.update(d.ref, { routeId: null, updatedAt: FieldValue.serverTimestamp() })
+  );
 
   // Delete drivers on this route (no route reassignment UI exists)
   const driversSnap = await adminDb.collection('drivers').where('routeId', '==', routeId).get();
