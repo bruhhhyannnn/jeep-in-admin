@@ -1,15 +1,26 @@
 ﻿'use client';
 
+import { useState, useEffect } from 'react';
 import { Bus, Users, MapPin, Clock } from 'lucide-react';
 import { PageBreadcrumb } from '@/components/common';
-import { Badge, Spinner } from '@/components/ui';
+import { Badge, Spinner, Select } from '@/components/ui';
 import { useAuthStore } from '@/store';
-import { useDrivers, useJeepneys, useRoute, useOrganization } from '@/hooks';
+import { useDrivers, useJeepneys, useRoute, useOrganization, useOrganizations } from '@/hooks';
 
 export default function DashboardPage() {
   const { userProfile } = useAuthStore();
-  const orgId = userProfile?.organizationId ?? '';
+  const isSuperAdmin = userProfile?.role === 'super_admin';
 
+  const { data: allOrgs = [] } = useOrganizations();
+  const [selectedOrgId, setSelectedOrgId] = useState('');
+
+  useEffect(() => {
+    if (isSuperAdmin && !selectedOrgId && allOrgs.length > 0) {
+      setSelectedOrgId(allOrgs[0].id);
+    }
+  }, [isSuperAdmin, allOrgs, selectedOrgId]);
+
+  const orgId = isSuperAdmin ? selectedOrgId : (userProfile?.organizationId ?? '');
   const { data: org } = useOrganization(orgId);
   const { data: drivers = [], isPending: loadingDrivers } = useDrivers(orgId);
   const { data: jeepneys = [], isPending: loadingJeepneys } = useJeepneys(orgId);
@@ -65,6 +76,15 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageBreadcrumb pageTitle="Dashboard" />
+
+      {isSuperAdmin && (
+        <Select
+          options={allOrgs.map((o) => ({ value: o.id, label: `${o.id} — ${o.name}` }))}
+          value={selectedOrgId}
+          onChange={(e) => setSelectedOrgId(e.target.value)}
+          placeholder="Select organization…"
+        />
+      )}
 
       {/* Org header */}
       {org && (

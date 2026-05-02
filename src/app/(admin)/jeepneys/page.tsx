@@ -11,6 +11,7 @@ import {
   Button,
   Input,
   Label,
+  Select,
   Badge,
   Modal,
   ConfirmDialog,
@@ -25,6 +26,7 @@ import {
   useUpdateJeepney,
   useDeleteJeepney,
   useOrganization,
+  useOrganizations,
 } from '@/hooks';
 import { jeepneySchema, type JeepneyFormData } from '@/lib';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -33,7 +35,18 @@ import { toDate } from '@/lib';
 
 export default function JeepneysPage() {
   const { userProfile } = useAuthStore();
-  const orgId = userProfile?.organizationId ?? '';
+  const isSuperAdmin = userProfile?.role === 'super_admin';
+
+  const { data: allOrgs = [] } = useOrganizations();
+  const [selectedOrgId, setSelectedOrgId] = useState('');
+
+  useEffect(() => {
+    if (isSuperAdmin && !selectedOrgId && allOrgs.length > 0) {
+      setSelectedOrgId(allOrgs[0].id);
+    }
+  }, [isSuperAdmin, allOrgs, selectedOrgId]);
+
+  const orgId = isSuperAdmin ? selectedOrgId : (userProfile?.organizationId ?? '');
   const { data: org } = useOrganization(orgId);
   const routeId = org?.routeId ?? '';
 
@@ -162,15 +175,25 @@ export default function JeepneysPage() {
       <div className="space-y-6">
         <PageBreadcrumb pageTitle="Jeepneys" />
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="relative w-full max-w-sm">
-            <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-600" />
-            <Input
-              placeholder="Search by plate or number…"
-              className="pl-9"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-1 flex-wrap items-center gap-3">
+            {isSuperAdmin && (
+              <Select
+                options={allOrgs.map((o) => ({ value: o.id, label: `${o.id} — ${o.name}` }))}
+                value={selectedOrgId}
+                onChange={(e) => setSelectedOrgId(e.target.value)}
+                placeholder="Select organization…"
+              />
+            )}
+            <div className="relative max-w-sm min-w-48 flex-1">
+              <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-600" />
+              <Input
+                placeholder="Search by plate or number…"
+                className="pl-9"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
           </div>
           <Button onClick={() => setModalOpen(true)} startIcon={<Plus size={16} />}>
             Add Jeepney

@@ -1,21 +1,34 @@
 ﻿'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageBreadcrumb } from '@/components/common';
-import { Button, Label, Input, Badge, Spinner } from '@/components/ui';
+import { Button, Label, Input, Select, Badge, Spinner } from '@/components/ui';
 import { useAuthStore } from '@/store';
-import { useOrganization, useRoute, useUpdateWorkingHours } from '@/hooks';
+import { useOrganization, useRoute, useUpdateWorkingHours, useAllRoutes } from '@/hooks';
 import { workingHoursSchema, type WorkingHoursFormData } from '@/lib';
 
 export default function WorkingHoursPage() {
   const { userProfile } = useAuthStore();
+  const isSuperAdmin = userProfile?.role === 'super_admin';
+
+  const { data: allRoutes = [] } = useAllRoutes();
+  const [selectedRouteId, setSelectedRouteId] = useState('');
+
+  useEffect(() => {
+    if (isSuperAdmin && !selectedRouteId && allRoutes.length > 0) {
+      setSelectedRouteId(allRoutes[0].id);
+    }
+  }, [isSuperAdmin, allRoutes, selectedRouteId]);
+
   const orgId = userProfile?.organizationId ?? '';
-  const { data: org } = useOrganization(orgId);
-  const { data: route, isPending } = useRoute(org?.routeId);
+  const { data: org } = useOrganization(isSuperAdmin ? undefined : orgId);
+  const routeId = isSuperAdmin ? selectedRouteId : (org?.routeId ?? '');
+
+  const { data: route, isPending } = useRoute(routeId || undefined);
   const updateHours = useUpdateWorkingHours();
 
   const {
@@ -32,9 +45,9 @@ export default function WorkingHoursPage() {
   }, [route, reset]);
 
   const onSubmit = handleSubmit((data) => {
-    if (!org?.routeId) return;
+    if (!routeId) return;
     updateHours.mutate(
-      { routeId: org.routeId, data },
+      { routeId, data },
       {
         onSuccess: () => toast.success('Working hours updated'),
         onError: (e) => toast.error(e.message),
@@ -55,6 +68,18 @@ export default function WorkingHoursPage() {
   return (
     <div className="space-y-6">
       <PageBreadcrumb pageTitle="Working Hours" />
+
+      {isSuperAdmin && (
+        <Select
+          options={allRoutes.map((r) => ({ value: r.id, label: r.name }))}
+          value={selectedRouteId}
+          onChange={(e) => {
+            setSelectedRouteId(e.target.value);
+            reset();
+          }}
+          placeholder="Select route…"
+        />
+      )}
 
       {isPending ? (
         <div className="flex h-40 items-center justify-center">
