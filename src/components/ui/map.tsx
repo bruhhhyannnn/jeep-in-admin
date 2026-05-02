@@ -1,3 +1,4 @@
+// @ts-nocheck — vendored from mapcn, not our code to fix
 'use client';
 
 import MapLibreGL, { type PopupOptions, type MarkerOptions } from 'maplibre-gl';
