@@ -35,17 +35,17 @@ const NAV_ITEMS: NavItem[] = [
   { icon: <Map size={20} />, name: 'Live Map', path: '/map' },
   { icon: <MapPin size={20} />, name: 'Stop Points', path: '/stop-points' },
   { icon: <Clock size={20} />, name: 'Working Hours', path: '/working-hours' },
+  { icon: <BookOpen size={20} />, name: 'Fare Guide', path: '/fare-guide' },
   { icon: <ScrollText size={20} />, name: 'Audit Logs', path: '/audit-logs' },
   // Super admin only
-  { icon: <BookOpen size={20} />, name: 'Fare Guide', path: '/fare-guide', superAdminOnly: true },
   { icon: <UserCog size={20} />, name: 'Admins', path: '/admins', superAdminOnly: true },
-  { icon: <Route size={20} />, name: 'Routes', path: '/routes', superAdminOnly: true },
   {
     icon: <Building2 size={20} />,
     name: 'Organizations',
     path: '/organizations',
     superAdminOnly: true,
   },
+  { icon: <Route size={20} />, name: 'Routes', path: '/routes', superAdminOnly: true },
 ];
 
 export function AppSidebar() {

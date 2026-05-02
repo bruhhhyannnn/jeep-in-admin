@@ -18,7 +18,6 @@ const ROLE_OPTIONS = [
   { value: '', label: 'All roles' },
   { value: 'driver', label: 'Drivers' },
   { value: 'admin', label: 'Admins' },
-  { value: 'super_admin', label: 'Super Admin' },
 ];
 
 const ACTION_COLOR: Record<string, 'primary' | 'success' | 'danger' | 'warning' | 'info'> = {

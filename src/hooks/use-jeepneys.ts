@@ -45,8 +45,10 @@ export function useCreateJeepney() {
       organizationId: string;
       routeId: string;
     }) => createJeepney(data, organizationId, routeId),
-    onSuccess: (_, { organizationId }) =>
-      qc.invalidateQueries({ queryKey: ['jeepneys', organizationId] }),
+    onSuccess: (_, { organizationId }) => {
+      qc.invalidateQueries({ queryKey: ['jeepneys', organizationId] });
+      qc.invalidateQueries({ queryKey: ['jeepneys-unassigned', organizationId] });
+    },
   });
 }
 
@@ -66,6 +68,9 @@ export function useDeleteJeepney() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteJeepney(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['jeepneys'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jeepneys'] });
+      qc.invalidateQueries({ queryKey: ['drivers'] });
+    },
   });
 }

@@ -35,7 +35,7 @@ import { stopPointSchema, type StopPointFormData } from '@/lib';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { StopPoint } from '@/types';
 
-const DEFAULT_CENTER: [number, number] = [120.5936, 18.198];
+const DEFAULT_CENTER: [number, number] = [120.551474, 18.058174];
 const DEFAULT_ZOOM = 12;
 
 export default function StopPointsPage() {
