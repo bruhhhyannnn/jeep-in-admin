@@ -62,9 +62,7 @@ export const stopPointSchema = z.object({
 export const routeSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
-  directions: z
-    .array(z.string().min(1))
-    .min(1, 'At least one direction is required'),
+  directions: z.array(z.string().min(1)).min(1, 'At least one direction is required'),
   isActive: z.boolean().default(true),
   workingHours: z.object({
     start: z.string().min(1, 'Start time is required'),
@@ -75,7 +73,10 @@ export const routeSchema = z.object({
 /* ─── Organization ─── */
 export const organizationSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  shortName: z.string().min(1, 'Short name is required').max(10, 'Short name must be 10 characters or less'),
+  shortName: z
+    .string()
+    .min(1, 'Short name is required')
+    .max(10, 'Short name must be 10 characters or less'),
   routeId: z.string().min(1, 'Route is required'),
   isActive: z.boolean().default(true),
 });

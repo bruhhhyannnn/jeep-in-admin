@@ -158,11 +158,7 @@ export default function RoutesPage() {
         />
       </div>
 
-      <Modal
-        isOpen={modalOpen}
-        onClose={handleClose}
-        title={editId ? 'Edit Route' : 'Add Route'}
-      >
+      <Modal isOpen={modalOpen} onClose={handleClose} title={editId ? 'Edit Route' : 'Add Route'}>
         <RouteForm
           editId={editId}
           routes={routes}
@@ -288,8 +284,7 @@ function RouteForm({
 
       <div>
         <Label>
-          Description{' '}
-          <span className="text-xs font-normal text-gray-500">(optional)</span>
+          Description <span className="text-xs font-normal text-gray-500">(optional)</span>
         </Label>
         <Input
           placeholder="e.g. Main route covering Laoag, Batac, and Paoay"
@@ -320,7 +315,8 @@ function RouteForm({
         </div>
         {errors.directions && (
           <p className="text-danger-400 mt-1 text-xs">
-            {(errors.directions as { message?: string }).message ?? 'At least one direction is required'}
+            {(errors.directions as { message?: string }).message ??
+              'At least one direction is required'}
           </p>
         )}
         {directions.length > 0 && (

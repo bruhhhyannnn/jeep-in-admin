@@ -74,6 +74,13 @@ export async function reactivateAdmin(uid: string): Promise<void> {
     .update({ isActive: true, updatedAt: FieldValue.serverTimestamp() });
 }
 
+export async function reassignAdminOrg(uid: string, organizationId: string): Promise<void> {
+  await adminDb
+    .collection(COL)
+    .doc(uid)
+    .update({ organizationId, updatedAt: FieldValue.serverTimestamp() });
+}
+
 export async function deleteAdmin(uid: string): Promise<void> {
   await adminDb.collection(COL).doc(uid).delete();
   await adminDb.collection('users').doc(uid).delete();

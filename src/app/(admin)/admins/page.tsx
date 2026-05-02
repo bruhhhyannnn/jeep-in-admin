@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, UserMinus, Copy, Check, UserCheck } from 'lucide-react';
+import { Plus, Search, Trash2, UserMinus, Copy, Check, UserCheck, Pencil } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
@@ -24,6 +24,7 @@ import {
   useDeactivateAdmin,
   useReactivateAdmin,
   useDeleteAdmin,
+  useReassignAdminOrg,
   useOrganizations,
 } from '@/hooks';
 import { adminCreateSchema, toDate, type AdminCreateFormData } from '@/lib';
@@ -34,6 +35,7 @@ export default function AdminsPage() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [reassignId, setReassignId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deactivateId, setDeactivateId] = useState<string | null>(null);
   const [reactivateId, setReactivateId] = useState<string | null>(null);
@@ -147,6 +149,13 @@ export default function AdminsPage() {
             </button>
           )}
           <button
+            title="Reassign organization"
+            onClick={() => setReassignId(a.uid)}
+            className="hover:text-brand-400 cursor-pointer text-gray-600 transition-colors"
+          >
+            <Pencil size={16} />
+          </button>
+          <button
             title="Delete admin"
             onClick={() => setDeleteId(a.uid)}
             className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
@@ -196,6 +205,23 @@ export default function AdminsPage() {
             toast.success('Admin account created');
           }}
           onCancel={() => setCreateOpen(false)}
+        />
+      </Modal>
+
+      {/* Reassign org modal */}
+      <Modal
+        isOpen={!!reassignId}
+        onClose={() => setReassignId(null)}
+        title="Reassign Organization"
+      >
+        <ReassignOrgForm
+          uid={reassignId}
+          admins={admins}
+          onSuccess={() => {
+            setReassignId(null);
+            toast.success('Organization updated');
+          }}
+          onCancel={() => setReassignId(null)}
         />
       </Modal>
 
@@ -327,6 +353,7 @@ function AdminCreateForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
         </p>
       </div>
 
+      {/* TODO: have this one to be edited as well. but only this one */}
       <div>
         <Label required>Organization</Label>
         <Select
@@ -349,6 +376,73 @@ function AdminCreateForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
           loadingText="Creating…"
         >
           Create Admin
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/* ─── Reassign Org Form ─── */
+function ReassignOrgForm({
+  uid,
+  admins,
+  onSuccess,
+  onCancel,
+}: {
+  uid: string | null;
+  admins: AdminProfile[];
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const admin = admins.find((a) => a.uid === uid);
+  const { data: orgs = [] } = useOrganizations();
+  const reassignOrg = useReassignAdminOrg();
+  const [selectedOrgId, setSelectedOrgId] = useState(admin?.organizationId ?? '');
+
+  useEffect(() => {
+    setSelectedOrgId(admin?.organizationId ?? '');
+  }, [admin]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uid || !selectedOrgId) return;
+    reassignOrg.mutate(
+      { uid, organizationId: selectedOrgId },
+      { onSuccess, onError: (e) => toast.error(e.message) }
+    );
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <p className="text-sm text-gray-500">
+        Reassigning organization for{' '}
+        <span className="font-medium text-gray-800 dark:text-gray-200">
+          {admin?.firstName} {admin?.lastName}
+        </span>
+      </p>
+
+      <div>
+        <Label required>Organization</Label>
+        <Select
+          options={orgs.map((o) => ({ value: o.id, label: `${o.shortName} — ${o.name}` }))}
+          placeholder="Select organization…"
+          value={selectedOrgId}
+          onChange={(e) => setSelectedOrgId(e.target.value)}
+        />
+      </div>
+
+      <div className="flex justify-end gap-3 pt-2">
+        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          size="sm"
+          isLoading={reassignOrg.isPending}
+          loadingText="Saving…"
+          disabled={!selectedOrgId || selectedOrgId === admin?.organizationId}
+        >
+          Save
         </Button>
       </div>
     </form>

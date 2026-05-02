@@ -6,6 +6,7 @@ import {
   deactivateAdmin,
   reactivateAdmin,
   deleteAdmin,
+  reassignAdminOrg,
 } from '@/actions';
 import { AdminCreateFormData } from '@/lib';
 
@@ -44,6 +45,15 @@ export function useReactivateAdmin() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (uid: string) => reactivateAdmin(uid),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admins'] }),
+  });
+}
+
+export function useReassignAdminOrg() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ uid, organizationId }: { uid: string; organizationId: string }) =>
+      reassignAdminOrg(uid, organizationId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admins'] }),
   });
 }

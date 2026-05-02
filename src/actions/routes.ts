@@ -44,14 +44,17 @@ export async function createRoute(data: RouteFormData): Promise<string> {
 }
 
 export async function updateRoute(routeId: string, data: RouteFormData): Promise<void> {
-  await adminDb.collection('routes').doc(routeId).update({
-    name: data.name,
-    description: data.description ?? null,
-    directions: data.directions,
-    isActive: data.isActive,
-    workingHours: { start: data.workingHours.start, end: data.workingHours.end },
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  await adminDb
+    .collection('routes')
+    .doc(routeId)
+    .update({
+      name: data.name,
+      description: data.description ?? null,
+      directions: data.directions,
+      isActive: data.isActive,
+      workingHours: { start: data.workingHours.start, end: data.workingHours.end },
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 }
 
 export async function deleteRoute(routeId: string): Promise<void> {
