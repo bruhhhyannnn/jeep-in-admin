@@ -49,6 +49,12 @@ export default function StopPointsPage() {
   const { data: allRoutes = [] } = useAllRoutes();
   const [selectedRouteId, setSelectedRouteId] = useState('');
 
+  useEffect(() => {
+    if (isSuperAdmin && !selectedRouteId && allRoutes.length > 0) {
+      setSelectedRouteId(allRoutes[0].id);
+    }
+  }, [isSuperAdmin, allRoutes, selectedRouteId]);
+
   const routeId = isSuperAdmin ? selectedRouteId : adminRouteId;
 
   const currentRoute = allRoutes.find((r) => r.id === routeId);

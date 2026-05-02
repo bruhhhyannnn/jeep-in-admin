@@ -12,7 +12,7 @@ export async function getStopPoints(routeId: string): Promise<StopPoint[]> {
   const snap = await adminDb
     .collection(COL)
     .where('routeId', '==', routeId)
-    .orderBy('order', 'asc')
+    .orderBy('name', 'asc')
     .get();
   return snap.docs.map((d) => serializeDoc({ ...(d.data() as StopPoint), id: d.id }));
 }
