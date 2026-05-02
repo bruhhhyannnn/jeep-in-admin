@@ -14,6 +14,7 @@ import {
   UserCog,
   BookOpen,
   Route,
+  Building2,
   ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib';
@@ -39,6 +40,12 @@ const NAV_ITEMS: NavItem[] = [
   { icon: <BookOpen size={20} />, name: 'Fare Guide', path: '/fare-guide', superAdminOnly: true },
   { icon: <UserCog size={20} />, name: 'Admins', path: '/admins', superAdminOnly: true },
   { icon: <Route size={20} />, name: 'Routes', path: '/routes', superAdminOnly: true },
+  {
+    icon: <Building2 size={20} />,
+    name: 'Organizations',
+    path: '/organizations',
+    superAdminOnly: true,
+  },
 ];
 
 export function AppSidebar() {

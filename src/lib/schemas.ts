@@ -72,6 +72,14 @@ export const routeSchema = z.object({
   }),
 });
 
+/* ─── Organization ─── */
+export const organizationSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  shortName: z.string().min(1, 'Short name is required').max(10, 'Short name must be 10 characters or less'),
+  routeId: z.string().min(1, 'Route is required'),
+  isActive: z.boolean().default(true),
+});
+
 /* ─── Admin Account (created by super admin) ─── */
 export const adminCreateSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -89,4 +97,5 @@ export type FareGuideFormData = z.infer<typeof fareGuideSchema>;
 export type WorkingHoursFormData = z.infer<typeof workingHoursSchema>;
 export type StopPointFormData = z.infer<typeof stopPointSchema>;
 export type RouteFormData = z.infer<typeof routeSchema>;
+export type OrganizationFormData = z.infer<typeof organizationSchema>;
 export type AdminCreateFormData = z.infer<typeof adminCreateSchema>;
