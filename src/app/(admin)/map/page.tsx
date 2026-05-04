@@ -37,6 +37,7 @@ export default function MapPage() {
 
   const [selectedOrgId, setSelectedOrgId] = useState(orgId);
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
+  const [selectedStop, setSelectedStop] = useState<string | null>(null);
   const mapRef = useRef<MapRef>(null);
 
   const { data: allOrgs = [] } = useOrganizations();
@@ -85,7 +86,7 @@ export default function MapPage() {
 
       <div className="flex flex-wrap gap-4">
         <div className="dark:shadow-theme-md-dark relative h-72 min-w-80 flex-1 overflow-hidden rounded-xl border border-gray-200 shadow-md md:h-125 dark:border-gray-800">
-          <Map ref={mapRef} center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM}>
+          <Map ref={mapRef} center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} pitch={55}>
             <MapControls position="top-right" showZoom showLocate showFullscreen />
 
             {/* Legend */}
@@ -104,7 +105,25 @@ export default function MapPage() {
             {stopPoints.map((stop) => (
               <MapMarker key={stop.id} longitude={stop.longitude} latitude={stop.latitude}>
                 <MarkerContent>
-                  <div className="bg-warning-400 h-3.5 w-3.5 rounded-full border-2 border-white shadow" />
+                  <div
+                    onClick={() => setSelectedStop(selectedStop === stop.id ? null : stop.id)}
+                    className="relative flex cursor-pointer items-center justify-center"
+                  >
+                    {/* Ping ring */}
+                    {selectedStop === stop.id && (
+                      <div className="bg-warning-400 absolute h-3.5 w-3.5 animate-ping rounded-full opacity-60" />
+                    )}
+
+                    {/* Main dot */}
+                    <div
+                      className={[
+                        'relative h-3.5 w-3.5 rounded-full border-2 border-white shadow transition-transform',
+                        selectedStop === stop.id
+                          ? 'bg-warning-500 scale-125 animate-bounce'
+                          : 'bg-warning-400 hover:scale-125',
+                      ].join(' ')}
+                    />
+                  </div>
                 </MarkerContent>
                 <MarkerTooltip className="bg-white">{stop.name}</MarkerTooltip>
                 <MarkerPopup className="bg-white">
@@ -172,32 +191,57 @@ export default function MapPage() {
                   <MarkerContent>
                     <div
                       onClick={() => setSelectedDriver(isSelected ? null : loc.driverId)}
-                      className={[
-                        'flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-transform',
-                        isSelected
-                          ? 'border-brand-400 bg-brand-700 scale-125'
-                          : 'bg-brand-600 border-white hover:scale-110',
-                      ].join(' ')}
+                      className="relative flex cursor-pointer items-center justify-center"
                     >
-                      <Bus size={16} className="text-white" />
+                      {/* Ping ring */}
+                      <div className="bg-brand-400 absolute h-7 w-7 animate-ping rounded-full opacity-60" />
+
+                      {/* Main circle */}
+                      <div
+                        className={[
+                          'relative flex h-7 w-7 items-center justify-center rounded-full border-2 shadow-lg transition-transform',
+                          isSelected
+                            ? 'border-brand-400 bg-brand-700 scale-125 animate-bounce'
+                            : 'bg-brand-600 border-white hover:scale-125',
+                        ].join(' ')}
+                      >
+                        <Bus size={14} className="text-white" />
+                      </div>
                     </div>
                   </MarkerContent>
-                  <MarkerTooltip>
-                    {driver ? `${driver.firstName} ${driver.lastName}` : 'Unknown driver'}
+                  <MarkerTooltip className="mb-2 bg-white">
+                    {jeepney
+                      ? `Jeepney #${jeepney.jeepneyNumber} - ${jeepney.plateNumber}`
+                      : 'Unknown jeepney'}
                   </MarkerTooltip>
-                  <MarkerPopup>
-                    <div className="min-w-40 space-y-1">
-                      <p className="font-semibold">
-                        {driver ? `${driver.firstName} ${driver.lastName}` : 'Unknown driver'}
-                      </p>
-                      {jeepney && (
-                        <p className="text-xs text-gray-500">
-                          Jeepney #{jeepney.jeepneyNumber} - {jeepney.plateNumber}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-1.5 pt-0.5">
-                        <span className="bg-success-400 h-1.5 w-1.5 rounded-full" />
-                        <span className="text-xs text-gray-500">Live GPS</span>
+                  <MarkerPopup className="mb-4 bg-white">
+                    <div className="min-w-44 space-y-2">
+                      {/* Header */}
+                      <div className="flex items-start gap-2">
+                        <div className="bg-brand-600/20 mt-0.5 flex h-7 w-7 shrink-0 animate-pulse items-center justify-center rounded-full">
+                          <Bus size={14} className="text-brand-600" />
+                        </div>
+                        <div>
+                          {jeepney && (
+                            <p className="text-sm leading-tight font-semibold text-gray-900">
+                              Jeepney #{jeepney.jeepneyNumber} · {jeepney.plateNumber}
+                            </p>
+                          )}
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            {driver ? `${driver.firstName} ${driver.lastName}` : 'Unknown driver'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Divider */}
+                      <div className="h-px bg-gray-100" />
+
+                      {/* Live badge */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">
+                          <span className="bg-success-400 h-1.5 w-1.5 animate-pulse rounded-full" />
+                          Live GPS
+                        </span>
                       </div>
                     </div>
                   </MarkerPopup>
@@ -211,7 +255,7 @@ export default function MapPage() {
 
         {/* Active Drivers, right side */}
         <div
-          className="custom-scrollbar dark:shadow-theme-md-dark w-64 shrink-0 space-y-2 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-md dark:border-gray-800 dark:bg-gray-900"
+          className="custom-scrollbar dark:shadow-theme-sm-dark w-64 shrink-0 space-y-2 overflow-y-auto rounded-xl border border-gray-200 bg-white/50 p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900"
           style={{ maxHeight: '600px' }}
         >
           <p className="mb-3 text-xs font-semibold tracking-wide text-gray-500 uppercase">
@@ -234,15 +278,15 @@ export default function MapPage() {
                   key={loc.driverId}
                   onClick={() => setSelectedDriver(isSelected ? null : loc.driverId)}
                   className={[
-                    'w-full rounded-lg border p-3 text-left transition-colors',
+                    'w-full cursor-pointer rounded-lg border bg-white p-3 text-left shadow-md transition-colors',
                     isSelected
                       ? 'border-brand-600 bg-brand-600/10'
-                      : 'border-gray-800 hover:border-gray-700 dark:border-gray-200 dark:hover:border-gray-300',
+                      : 'hover:border-brand-400 hover:bg-brand-50 border-gray-200',
                   ].join(' ')}
                 >
                   <div className="flex items-center gap-2">
                     <Bus size={14} className="text-brand-400" />
-                    <span className="text-xs font-medium text-gray-200 dark:text-gray-800">
+                    <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
                       {d ? `${d.firstName} ${d.lastName}` : 'Unknown'}
                     </span>
                   </div>
@@ -264,7 +308,7 @@ export default function MapPage() {
 
       {/* Stop Points panel */}
       {stopPoints.length > 0 && (
-        <div className="dark:shadow-theme-md-dark rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-800 dark:bg-gray-900">
+        <div className="dark:shadow-theme-sm-dark rounded-xl border border-gray-200 bg-white/50 p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div className="mb-3 flex items-center gap-2">
             <MapPin size={14} className="text-warning-400" />
             <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
@@ -282,20 +326,21 @@ export default function MapPage() {
                   .map((s: string) => s.charAt(0).toUpperCase() + s.slice(1))
                   .join(' → ')}
               </p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                 {stopPoints
                   .filter((s) => s.routeDirection === dir)
                   .map((stop) => (
                     <button
                       key={stop.id}
-                      onClick={() =>
+                      onClick={() => {
+                        setSelectedStop(selectedStop === stop.id ? null : stop.id);
                         mapRef.current?.flyTo({
                           center: [stop.longitude, stop.latitude],
                           zoom: 17,
                           duration: 800,
-                        })
-                      }
-                      className="hover:border-warning-400/50 hover:bg-warning-400/10 flex cursor-pointer items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-left transition-colors dark:border-gray-800 dark:bg-gray-800/50"
+                        });
+                      }}
+                      className="hover:border-warning-400/50 hover:bg-warning-400/10 flex cursor-pointer items-center gap-2 rounded-lg border border-gray-100 bg-white px-3 py-2 text-left shadow-md transition-colors dark:border-gray-800 dark:bg-gray-800/50"
                     >
                       <div className="bg-warning-400 h-2 w-2 shrink-0 rounded-full" />
                       <div className="min-w-0">
@@ -330,7 +375,13 @@ function RealtimeLayer({
   useEffect(() => {
     if (!map || !isLoaded || !selectedDriver) return;
     const loc = locations.find((l) => l.driverId === selectedDriver);
-    if (loc) {
+    if (
+      loc &&
+      loc.latitude != null &&
+      loc.longitude != null &&
+      !isNaN(loc.latitude) &&
+      !isNaN(loc.longitude)
+    ) {
       map.flyTo({ center: [loc.longitude, loc.latitude], zoom: 15, duration: 800 });
     }
   }, [selectedDriver, map, isLoaded, locations]);

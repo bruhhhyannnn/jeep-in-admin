@@ -29,7 +29,14 @@ export function useDriverLocations(organizationId: string) {
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
-        const data = snap.docs.map((d) => d.data() as DriverLocation);
+        const data = snap.docs.map((d) => {
+          const raw = d.data();
+          return {
+            ...raw,
+            latitude: raw.latitude ?? raw.lat,
+            longitude: raw.longitude ?? raw.long,
+          } as DriverLocation;
+        });
         setLocations(data);
         setLoading(false);
       },
@@ -61,7 +68,16 @@ export function useAllDriverLocations() {
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
-        setLocations(snap.docs.map((d) => d.data() as DriverLocation));
+        setLocations(
+          snap.docs.map((d) => {
+            const raw = d.data();
+            return {
+              ...raw,
+              latitude: raw.latitude ?? raw.lat,
+              longitude: raw.longitude ?? raw.long,
+            } as DriverLocation;
+          })
+        );
         setLoading(false);
       },
       (err) => {
