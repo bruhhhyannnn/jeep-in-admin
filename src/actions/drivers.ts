@@ -122,6 +122,7 @@ export async function deleteDriver(uid: string): Promise<void> {
   // Remove from Firestore
   await adminDb.collection(COL).doc(uid).delete();
   await adminDb.collection('users').doc(uid).delete();
+  await adminDb.collection('driver_locations').doc(uid).delete();
 
   // Delete Firebase Auth account
   await adminAuth.deleteUser(uid);

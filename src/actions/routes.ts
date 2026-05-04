@@ -80,6 +80,7 @@ export async function deleteRoute(routeId: string): Promise<void> {
   driversSnap.docs.forEach((d) => {
     batch.delete(d.ref);
     batch.delete(adminDb.collection('users').doc(d.id));
+    batch.delete(adminDb.collection('driver_locations').doc(d.id));
   });
 
   // Route itself
