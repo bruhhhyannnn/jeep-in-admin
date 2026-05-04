@@ -278,10 +278,10 @@ export default function MapPage() {
                   key={loc.driverId}
                   onClick={() => setSelectedDriver(isSelected ? null : loc.driverId)}
                   className={[
-                    'w-full cursor-pointer rounded-lg border bg-white p-3 text-left shadow-md transition-colors',
+                    'hover:border-brand-400 hover:bg-brand-50 w-full cursor-pointer rounded-lg border bg-white p-3 text-left shadow-md transition-colors dark:bg-gray-800',
                     isSelected
                       ? 'border-brand-600 bg-brand-600/10'
-                      : 'hover:border-brand-400 hover:bg-brand-50 border-gray-200',
+                      : 'dark:hover:bg-brand-800/50 border-gray-200 dark:border-gray-800',
                   ].join(' ')}
                 >
                   <div className="flex items-center gap-2">
