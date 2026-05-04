@@ -55,7 +55,9 @@ export default function MapPage() {
     ? superAdminLocations
     : adminLocations;
 
-  const activeCount = driverLocations.length;
+  const driverUidSet = new Set(drivers.map((d) => d.uid));
+  const filteredLocations = driverLocations.filter((loc) => driverUidSet.has(loc.driverId));
+  const activeCount = filteredLocations.length;
 
   return (
     <div className="space-y-4">
@@ -179,7 +181,7 @@ export default function MapPage() {
             ))}
 
             {/* Render Driver Locations */}
-            {driverLocations.map((loc) => {
+            {filteredLocations.map((loc) => {
               const driver = drivers.find((d) => d.uid === loc.driverId);
               const jeepney = driver?.assignedJeepneyId
                 ? jeepneys.find((j) => j.id === driver.assignedJeepneyId)
@@ -249,7 +251,7 @@ export default function MapPage() {
               );
             })}
 
-            <RealtimeLayer locations={driverLocations} selectedDriver={selectedDriver} />
+            <RealtimeLayer locations={filteredLocations} selectedDriver={selectedDriver} />
           </Map>
         </div>
 
@@ -263,10 +265,10 @@ export default function MapPage() {
           </p>
           {locLoading ? (
             <Spinner center size="sm" />
-          ) : driverLocations.length === 0 ? (
+          ) : filteredLocations.length === 0 ? (
             <p className="text-xs text-gray-600">No active drivers</p>
           ) : (
-            driverLocations.map((loc) => {
+            filteredLocations.map((loc) => {
               const d = drivers.find((dr) => dr.uid === loc.driverId);
               const j = d?.assignedJeepneyId
                 ? jeepneys.find((je) => je.id === d.assignedJeepneyId)
@@ -286,15 +288,15 @@ export default function MapPage() {
                 >
                   <div className="flex items-center gap-2">
                     <Bus size={14} className="text-brand-400" />
-                    <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
-                      {d ? `${d.firstName} ${d.lastName}` : 'Unknown'}
-                    </span>
+                    {j && (
+                      <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
+                        {d ? `#${j.jeepneyNumber} - ${j.plateNumber}` : 'Unknown'}
+                      </span>
+                    )}
                   </div>
-                  {j && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      #{j.jeepneyNumber} - {j.plateNumber}
-                    </p>
-                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    {d ? `${d.firstName} ${d.lastName}` : 'Unknown'}
+                  </p>
                   <div className="mt-1 flex items-center gap-1">
                     <span className="bg-success-400 h-1.5 w-1.5 rounded-full" />
                     <span className="text-xs text-gray-600">Live</span>
