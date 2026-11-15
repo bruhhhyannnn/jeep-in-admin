@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { cn, formatDirection, timeAgo } from '@/lib';
+import { cn, formatDirection, hasCoordinates, timeAgo } from '@/lib';
 import {
   Map,
   MapControls,
@@ -36,7 +36,7 @@ export function FleetMap({ units, stops, selectedKey, onSelect, now, emptyState 
       <Map center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM}>
         <MapControls position="top-right" showZoom showLocate showFullscreen />
 
-        {stops.map((stop) => (
+        {stops.filter(hasCoordinates).map((stop) => (
           <MapMarker key={stop.id} longitude={stop.longitude} latitude={stop.latitude}>
             <MarkerContent>
               <span className="border-ink-mark bg-card block h-3.5 w-3.5 rounded-full border-[3px] shadow-sm" />

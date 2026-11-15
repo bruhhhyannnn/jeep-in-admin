@@ -2,18 +2,36 @@
 
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
-import { WorkingHoursFormData, RouteFormData, serializeDoc } from '@/lib';
+import {
+  WorkingHoursFormData,
+  RouteFormData,
+  directionIds,
+  serializeDoc,
+  toDirectionDocs,
+} from '@/lib';
 import type { Route } from '@/types';
+
+/**
+ * The mobile apps store `directions` as `{ id, label, via }` objects; the admin works
+ * with the ids and writes the objects back (see src/lib/shapes.ts).
+ */
+function toRoute(id: string, raw: Record<string, unknown>): Route {
+  return serializeDoc({
+    ...(raw as unknown as Route),
+    directions: directionIds(raw.directions),
+    id,
+  });
+}
 
 export async function getRoute(routeId: string): Promise<Route | null> {
   const snap = await adminDb.collection('routes').doc(routeId).get();
   if (!snap.exists) return null;
-  return serializeDoc({ ...(snap.data() as Route), id: snap.id });
+  return toRoute(snap.id, snap.data()!);
 }
 
 export async function getAllRoutes(): Promise<Route[]> {
   const snap = await adminDb.collection('routes').get();
-  return snap.docs.map((d) => serializeDoc({ ...(d.data() as Route), id: d.id }));
+  return snap.docs.map((d) => toRoute(d.id, d.data()));
 }
 
 export async function updateWorkingHours(
@@ -34,7 +52,7 @@ export async function createRoute(data: RouteFormData): Promise<string> {
   const ref = await adminDb.collection('routes').add({
     name: data.name,
     description: data.description ?? null,
-    directions: data.directions,
+    directions: toDirectionDocs(data.directions),
     isActive: data.isActive,
     workingHours: { start: data.workingHours.start, end: data.workingHours.end },
     createdAt: now,
@@ -44,17 +62,17 @@ export async function createRoute(data: RouteFormData): Promise<string> {
 }
 
 export async function updateRoute(routeId: string, data: RouteFormData): Promise<void> {
-  await adminDb
-    .collection('routes')
-    .doc(routeId)
-    .update({
-      name: data.name,
-      description: data.description ?? null,
-      directions: data.directions,
-      isActive: data.isActive,
-      workingHours: { start: data.workingHours.start, end: data.workingHours.end },
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+  const ref = adminDb.collection('routes').doc(routeId);
+  // Keep the labels and via lists the mobile apps show for directions that stay.
+  const existing = (await ref.get()).data()?.directions;
+  await ref.update({
+    name: data.name,
+    description: data.description ?? null,
+    directions: toDirectionDocs(data.directions, existing),
+    isActive: data.isActive,
+    workingHours: { start: data.workingHours.start, end: data.workingHours.end },
+    updatedAt: FieldValue.serverTimestamp(),
+  });
 }
 
 export async function deleteRoute(routeId: string): Promise<void> {

@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { directionIds, hasCoordinates, stopFields } from '@/lib/shapes';
 import {
   MAX_BOTS,
   botId,
@@ -42,8 +43,11 @@ export async function getSimulationRoads(routeId: string): Promise<RoadLine[]> {
     adminDb.collection('routes').doc(routeId).get(),
     adminDb.collection('stop_points').where('routeId', '==', routeId).get(),
   ]);
-  const directions: string[] = routeSnap.data()?.directions ?? [];
-  const stops = stopsSnap.docs.map((d) => d.data()).filter((s) => s.isActive !== false);
+  const directions = directionIds(routeSnap.data()?.directions);
+  const stops = stopsSnap.docs
+    .map((d) => d.data())
+    .filter((s) => s.isActive !== false)
+    .map((s) => ({ name: String(s.name), order: s.order as unknown, ...stopFields(s) }));
 
   if (stops.some((s) => typeof s.order !== 'number')) {
     throw new Error('Some stops on this route have no order yet, so the road is unknown.');
@@ -53,8 +57,9 @@ export async function getSimulationRoads(routeId: string): Promise<RoadLine[]> {
   for (const directionId of directions) {
     const ordered = stops
       .filter((s) => s.routeDirection === directionId)
-      .sort((a, b) => a.order - b.order)
-      .map((s) => ({ name: String(s.name), lng: Number(s.longitude), lat: Number(s.latitude) }));
+      .sort((a, b) => (a.order as number) - (b.order as number))
+      .filter(hasCoordinates)
+      .map((s) => ({ name: s.name, lng: s.longitude, lat: s.latitude }));
     if (ordered.length < 2) continue;
 
     const res = await fetch(directionsUrl(ordered, token));
