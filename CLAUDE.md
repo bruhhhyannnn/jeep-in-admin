@@ -54,12 +54,12 @@ Every resource follows the same pattern:
 
 | Collection         | Key fields                                                                                       |
 | ------------------ | ------------------------------------------------------------------------------------------------ |
-| `routes`           | name, directions[], isActive, workingHours {start, end}                                          |
+| `routes`           | name, directions[] ({id, label, via[]}), isActive, workingHours {start, end}                     |
 | `organizations`    | name, shortName (used as doc ID), routeId, isActive                                              |
 | `admins`           | uid (doc ID), organizationId, firstName, lastName, isActive                                      |
 | `drivers`          | uid (doc ID), organizationId, routeId, assignedJeepneyId, mustChangePassword, lastLocationUpdate |
 | `jeepneys`         | plateNumber, jeepneyNumber, organizationId, routeId, assignedDriverId                            |
-| `stop_points`      | name, address, routeId, routeDirection, lat, long, order, isActive                               |
+| `stop_points`      | name, address, routeId, directionId, lat, long, order, isActive                                  |
 | `fare_guide`       | routeId, stopPointName, distanceKm, regularFare, discountedFare                                  |
 | `audit_logs`       | actorId, actorRole, action, targetType, targetId, organizationId                                 |
 | `users`            | uid, email, role, displayName, isActive (mirror of auth claims)                                  |
@@ -107,5 +107,6 @@ FIREBASE_ADMIN_PRIVATE_KEY   # escape newlines as \\n in the .env file
 - All Firestore writes in server actions use `FieldValue.serverTimestamp()` for `updatedAt` and `Timestamp.now()` for `createdAt`
 - Firestore batch writes cap at 500 ops; Firebase Auth deletions must happen **outside** the batch (separate API)
 - TanStack Query keys follow the pattern `['resource']` for lists and `['resource', id]` for single items. Mutation `onSuccess` must invalidate all query keys affected by cascade side effects.
-- The `directions` field on a `Route` document drives stop point direction options (e.g. `["laoag_paoay", "paoay_laoag"]`). Format for display: split on `_`, capitalize each word, join with `→`.
+- The `directions` field on a `Route` document drives stop point direction options. In Firestore it is `[{ id: "laoag_paoay", label: "Toward Paoay", via: [...] }, …]` (written by the mobile apps); the admin's `Route` type exposes just the ids. Format for display: split on `_`, capitalize each word, join with `→`.
+- `routes` and `stop_points` are shared with the mobile apps, which own their shape. Server actions read and write them through `src/lib/shapes.ts` (stops store `lat`/`long`/`directionId`, mapped to `latitude`/`longitude`/`routeDirection` in the admin's `StopPoint`). Never read raw fields off these docs in the UI.
 - `src/proxy.ts` is the Edge middleware file (Next.js config points to it); do not create `middleware.ts`

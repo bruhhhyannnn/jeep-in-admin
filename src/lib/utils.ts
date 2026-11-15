@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { directionIdOf } from './shapes';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -46,8 +47,11 @@ export function serializeDoc<T extends Record<string, unknown>>(doc: T): T {
 }
 
 /** "laoag_paoay" → "Laoag → Paoay" */
-export function formatDirection(dir: string): string {
-  return dir
+/** "laoag_paoay" (or `{ id: "laoag_paoay", … }`) → "Laoag → Paoay". Never throws on bad data. */
+export function formatDirection(dir: unknown): string {
+  const id = directionIdOf(dir);
+  if (!id) return '—';
+  return id
     .split('_')
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
     .join(' → ');
