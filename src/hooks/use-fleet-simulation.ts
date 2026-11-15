@@ -67,12 +67,12 @@ async function startRun(options: {
   routeName: string;
   count: number;
   minutes: number;
-}) {
+}): Promise<{ approximate: boolean }> {
   const store = useSimulationStore.getState();
-  if (store.running || store.starting) return;
+  if (store.running || store.starting) return { approximate: false };
   store.set({ starting: true, error: null });
   try {
-    const roads = await getSimulationRoads(options.routeId);
+    const { roads, approximate } = await getSimulationRoads(options.routeId);
     paths = roads.map(buildRoadPath);
     await startSimulation(options.organizationId, options.routeId, options.count);
     bots = placeBots(paths, options.count);
@@ -89,6 +89,7 @@ async function startRun(options: {
     await tick();
     timer = setInterval(() => void tick(), SIMULATION_TICK_S * 1000);
     invalidate();
+    return { approximate };
   } catch (err) {
     store.set({
       starting: false,

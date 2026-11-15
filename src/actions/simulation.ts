@@ -4,15 +4,8 @@ import { cookies } from 'next/headers';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
-import { directionIds, hasCoordinates, stopFields } from '@/lib/shapes';
-import {
-  MAX_BOTS,
-  botId,
-  botJeepneyId,
-  directionsUrl,
-  type LngLat,
-  type RoadLine,
-} from '@/lib/fleet-simulation';
+import { loadSimulationRoads } from '@/lib/simulation-roads';
+import { MAX_BOTS, botId, botJeepneyId, type RoadLine } from '@/lib/fleet-simulation';
 
 /**
  * Bot jeeps for demos — the dashboard's "Simulate jeeps" panel. The browser tab moves
@@ -33,48 +26,12 @@ async function requireSuperAdmin() {
   }
 }
 
-/** The route's roads: stops in order per direction and the Mapbox road through them. */
-export async function getSimulationRoads(routeId: string): Promise<RoadLine[]> {
+/** The route's roads for the bots (see src/lib/simulation-roads.ts). */
+export async function getSimulationRoads(
+  routeId: string
+): Promise<{ roads: RoadLine[]; approximate: boolean }> {
   await requireSuperAdmin();
-  const token = process.env.MAPBOX_PUBLIC_KEY;
-  if (!token) throw new Error('MAPBOX_PUBLIC_KEY is missing from .env.local.');
-
-  const [routeSnap, stopsSnap] = await Promise.all([
-    adminDb.collection('routes').doc(routeId).get(),
-    adminDb.collection('stop_points').where('routeId', '==', routeId).get(),
-  ]);
-  const directions = directionIds(routeSnap.data()?.directions);
-  const stops = stopsSnap.docs
-    .map((d) => d.data())
-    .filter((s) => s.isActive !== false)
-    .map((s) => ({ name: String(s.name), order: s.order as unknown, ...stopFields(s) }));
-
-  if (stops.some((s) => typeof s.order !== 'number')) {
-    throw new Error('Some stops on this route have no order yet, so the road is unknown.');
-  }
-
-  const roads: RoadLine[] = [];
-  for (const directionId of directions) {
-    const ordered = stops
-      .filter((s) => s.routeDirection === directionId)
-      .sort((a, b) => (a.order as number) - (b.order as number))
-      .filter(hasCoordinates)
-      .map((s) => ({ name: s.name, lng: s.longitude, lat: s.latitude }));
-    if (ordered.length < 2) continue;
-
-    const res = await fetch(directionsUrl(ordered, token));
-    const json = (await res.json()) as {
-      routes?: { geometry: { coordinates: LngLat[] } }[];
-      message?: string;
-    };
-    const line = json.routes?.[0]?.geometry.coordinates;
-    if (!line)
-      throw new Error(`Mapbox found no road for ${directionId}: ${json.message ?? res.status}`);
-    roads.push({ directionId, line, stops: ordered });
-  }
-
-  if (!roads.length) throw new Error('This route needs at least two stops in a direction.');
-  return roads;
+  return loadSimulationRoads(routeId);
 }
 
 /** Creates (or moves) bot units SIM-01… on the organization's route; extra ones are removed. */
