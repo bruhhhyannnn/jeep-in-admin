@@ -24,7 +24,7 @@ if (!getApps().length) {
 
 const db = getFirestore();
 
-interface StopSeed {
+export interface StopSeed {
   name: string;
   address: string;
   latitude: number;
@@ -33,7 +33,7 @@ interface StopSeed {
   order: number;
 }
 
-const PAOAY_LAOAG: StopSeed[] = [
+export const PAOAY_LAOAG: StopSeed[] = [
   {
     order: 1,
     name: 'Paoay-Laoag Modern Jeep Terminal',
@@ -204,7 +204,7 @@ const PAOAY_LAOAG: StopSeed[] = [
   },
 ];
 
-const LAOAG_PAOAY: StopSeed[] = [
+export const LAOAG_PAOAY: StopSeed[] = [
   {
     order: 1,
     name: 'Laoag-Paoay Modern Jeep Terminal',
@@ -407,7 +407,10 @@ async function seed() {
   process.exit(0);
 }
 
-seed().catch((err) => {
-  console.error('❌ Seed failed:', err);
-  process.exit(1);
-});
+// Seed only when run directly; scripts/fix-commuter-data.ts imports the stop lists above.
+if (require.main === module) {
+  seed().catch((err) => {
+    console.error('❌ Seed failed:', err);
+    process.exit(1);
+  });
+}

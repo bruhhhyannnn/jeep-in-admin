@@ -5,11 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { Eye, EyeOff, Bus } from 'lucide-react';
+import { Check, CircleAlert } from 'lucide-react';
 import { auth } from '@/lib';
 import { signInSchema, type SignInFormData } from '@/lib';
 import { useAuthStore } from '@/store';
-import { Button, Input, Label } from '@/components/ui';
+import { Button, Input } from '@/components/ui';
+import { LogoMark } from '@/components/common';
+import { LAST_EMAIL_KEY } from './sign-out-button';
 
 export function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -17,11 +19,13 @@ export function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams?.get('from') ?? '/';
+  const loggedOut = searchParams?.get('loggedOut') === '1';
   const { user } = useAuthStore();
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SignInFormData>({ resolver: zodResolver(signInSchema) });
 
@@ -29,6 +33,17 @@ export function SignInForm() {
   useEffect(() => {
     if (user) router.push(redirectTo);
   }, [user, router, redirectTo]);
+
+  // After logging out, keep the email so signing back in is quick.
+  useEffect(() => {
+    if (!loggedOut) return;
+    try {
+      const last = localStorage.getItem(LAST_EMAIL_KEY);
+      if (last) setValue('email', last);
+    } catch {
+      // Storage unavailable — the field just starts empty.
+    }
+  }, [loggedOut, setValue]);
 
   const onSubmit = async (data: SignInFormData) => {
     setAuthError('');
@@ -45,16 +60,27 @@ export function SignInForm() {
 
       if (!res.ok) {
         const body = await res.json();
-        setAuthError(body.error ?? 'You do not have permission to access this portal.');
+        setAuthError(
+          body.error?.includes('insufficient role')
+            ? "This account can't open the dashboard. Driver accounts only work in the driver app."
+            : (body.error ?? 'You do not have permission to access this portal.')
+        );
         await auth.signOut();
         return;
       }
 
+      try {
+        localStorage.setItem(LAST_EMAIL_KEY, data.email);
+      } catch {
+        // Not critical.
+      }
       router.push(redirectTo);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Sign in failed';
       if (msg.includes('auth/invalid-credential') || msg.includes('auth/user-not-found')) {
-        setAuthError('Invalid email or password.');
+        setAuthError('That email and password don’t match. Check both and try again.');
+      } else if (msg.includes('auth/too-many-requests')) {
+        setAuthError('Too many tries. Wait a few minutes, then sign in again.');
       } else {
         setAuthError(msg);
       }
@@ -62,71 +88,89 @@ export function SignInForm() {
   };
 
   return (
-    <div className="w-full max-w-md space-y-6">
-      {/* Logo + heading */}
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="bg-brand-600 flex h-14 w-14 items-center justify-center rounded-2xl">
-          <Bus size={28} className="text-white" />
-        </div>
+    <div className="border-line bg-card w-full max-w-[400px] rounded-[24px] border-[1.5px] p-7 shadow-md">
+      <div className="flex items-center gap-2.5">
+        <LogoMark className="text-action h-9 w-[23px]" />
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">JEEP-IN Admin</h1>
-          <p className="mt-1 text-sm text-gray-500">Sign in to manage your transport operations</p>
+          <p className="text-ink text-[17px] leading-tight font-extrabold tracking-tight">
+            JEEP-IN
+          </p>
+          <p className="text-ink-muted text-[12px] font-medium">Manager dashboard</p>
         </div>
       </div>
 
+      <h1 className="text-title text-ink mt-6">Sign in</h1>
+
+      {loggedOut && !authError && (
+        <div
+          role="status"
+          className="border-line bg-page rounded-input mt-4 flex items-center gap-2.5 border-[1.5px] px-3.5 py-3"
+        >
+          <span className="bg-live flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-white">
+            <Check size={13} strokeWidth={3} />
+          </span>
+          <p className="text-ink text-[13px] font-semibold">
+            You&apos;re logged out. Drivers keep sharing as normal.
+          </p>
+        </div>
+      )}
+
       {authError && (
-        <div className="bg-danger-500/10 text-danger-400 border-danger-500/20 rounded-lg border px-4 py-3 text-sm">
+        <div
+          role="alert"
+          className="bg-danger-soft text-danger-ink rounded-input mt-4 flex items-start gap-2.5 px-3.5 py-3 text-[13px] font-medium"
+        >
+          <CircleAlert size={17} className="mt-px shrink-0" />
           {authError}
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="admin@itc.com"
-            error={!!errors.email}
-            hint={errors.email?.message}
-            {...register('email')}
-          />
-        </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4" noValidate>
+        <Input
+          id="email"
+          type="email"
+          label="Email"
+          autoComplete="email"
+          placeholder="name@email.com"
+          error={!!errors.email}
+          hint={errors.email?.message}
+          {...register('email')}
+        />
 
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              error={!!errors.password}
-              hint={errors.password?.message}
-              className="pr-10"
-              {...register('password')}
-            />
+        <Input
+          id="password"
+          type={showPassword ? 'text' : 'password'}
+          label="Password"
+          autoComplete="current-password"
+          placeholder="Your password"
+          error={!!errors.password}
+          hint={errors.password?.message}
+          endSlot={
             <button
               type="button"
               onClick={() => setShowPassword((p) => !p)}
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+              aria-pressed={showPassword}
+              className="text-ink hover:bg-sunken h-8 cursor-pointer rounded-full px-3 text-[12px] font-semibold"
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showPassword ? 'Hide' : 'Show'}
             </button>
-          </div>
-        </div>
+          }
+          {...register('password')}
+        />
 
         <Button
           type="submit"
-          className="w-full"
+          size="lg"
+          className="mt-2 w-full"
           isLoading={isSubmitting}
-          loadingText="Signing in..."
+          loadingText="Signing in…"
         >
           Sign in
         </Button>
       </form>
 
-      <p className="text-center text-xs text-gray-500">
-        Admin portal only — contact your super administrator for access.
+      <p className="text-ink-muted mt-5 text-center text-[13px] font-semibold">
+        Forgot password — ask your super admin
       </p>
     </div>
   );

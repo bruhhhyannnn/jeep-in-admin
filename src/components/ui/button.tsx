@@ -1,8 +1,21 @@
 import React, { forwardRef } from 'react';
 import { cn } from '@/lib';
 
+type ButtonVariant =
+  | 'primary'
+  | 'moment'
+  | 'final'
+  | 'outline'
+  | 'ghost'
+  | 'danger'
+  | 'danger-outline';
+
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'outline' | 'ghost' | 'danger';
+  /**
+   * primary = default action (blue) · moment = the one hero action per screen (yellow) ·
+   * final = last step of a flow (navy) · outline = secondary · danger = can't be undone
+   */
+  variant?: ButtonVariant;
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   loadingText?: string;
@@ -10,21 +23,32 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   endIcon?: React.ReactNode;
 }
 
-const variantClasses = {
-  primary:
-    'bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-800 shadow-[inset_0_3px_4px_rgba(255,255,255,0.15),inset_0_-3px_4px_rgba(0,0,0,0.35)]',
+const variantClasses: Record<ButtonVariant, string> = {
+  primary: 'bg-action text-on-action hover:bg-action-hover active:bg-action-press',
+  moment: 'bg-moment text-on-moment hover:bg-moment-hover',
+  final: 'bg-final text-on-final hover:brightness-[.92]',
   outline:
-    'bg-transparent text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-100 dark:text-gray-300 dark:ring-gray-700 dark:hover:bg-gray-900 shadow-[inset_0_3px_4px_rgba(255,255,255,0.05),inset_0_-3px_4px_rgba(0,0,0,0.15)]',
-  ghost:
-    'text-gray-400 hover:bg-gray-100 hover:text-gray-200 dark:text-gray-600 dark:hover:bg-gray-900 dark:hover:text-gray-800 shadow-[inset_0_3px_4px_rgba(255,255,255,0.05),inset_0_-3px_4px_rgba(0,0,0,0.15)]',
-  danger:
-    'bg-danger-600 text-white hover:bg-danger-700 disabled:bg-danger-800 shadow-[inset_0_3px_4px_rgba(255,255,255,0.15),inset_0_-3px_4px_rgba(0,0,0,0.35)]',
+    'border-[1.5px] border-line-strong bg-card text-ink shadow-sm hover:bg-sunken active:bg-sunken',
+  ghost: 'text-ink-muted hover:bg-sunken hover:text-ink',
+  danger: 'bg-danger text-white hover:brightness-[.92]',
+  'danger-outline':
+    'border-[1.5px] border-danger/50 bg-card text-danger-ink hover:bg-danger-soft hover:border-danger',
+};
+
+const disabledClasses: Record<ButtonVariant, string> = {
+  primary: 'disabled:bg-disabled disabled:text-on-disabled',
+  moment: 'disabled:bg-disabled disabled:text-on-disabled',
+  final: 'disabled:bg-disabled disabled:text-on-disabled',
+  danger: 'disabled:bg-disabled disabled:text-on-disabled',
+  outline: 'disabled:text-on-disabled disabled:shadow-none',
+  'danger-outline': 'disabled:text-on-disabled disabled:border-line',
+  ghost: 'disabled:text-on-disabled',
 };
 
 const sizeClasses = {
-  sm: 'px-3 py-1.5 text-xs',
-  md: 'px-5 py-2.5 text-sm',
-  lg: 'px-7 py-3 text-base',
+  sm: 'h-9 px-4 text-[13px]',
+  md: 'h-11 px-5 text-sm',
+  lg: 'h-[52px] px-6 text-[15px]',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -39,44 +63,31 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       endIcon,
       className,
       disabled,
+      type = 'button',
       ...props
     },
     ref
   ) => (
     <button
       ref={ref}
+      type={type}
       disabled={disabled || isLoading}
       className={cn(
-        'inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200',
+        'inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap transition-[background-color,color,transform,filter,border-color] duration-150 ease-(--ease-calm) select-none active:scale-[.98]',
         variantClasses[variant],
+        disabledClasses[variant],
         sizeClasses[size],
-        (disabled || isLoading) && 'cursor-not-allowed opacity-50',
+        'disabled:cursor-not-allowed disabled:active:scale-100',
         className
       )}
       {...props}
     >
       {isLoading ? (
         <>
-          <svg
-            className="h-4 w-4 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
+          <span
+            aria-hidden
+            className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent"
+          />
           {loadingText ?? children}
         </>
       ) : (

@@ -1,10 +1,11 @@
-﻿import React from 'react';
+import React from 'react';
 import { cn } from '@/lib';
 
+/** One bordered block, a header strip, row dividers. */
 export function Table({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="dark:shadow-theme-md-dark overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-800 dark:bg-gray-950">
-      <div className="max-w-full overflow-x-auto">
+    <div className="border-line bg-card rounded-card overflow-hidden border-[1.5px] shadow-sm">
+      <div className="custom-scrollbar max-w-full overflow-x-auto">
         <table className={cn('w-full border-collapse', className)}>{children}</table>
       </div>
     </div>
@@ -12,22 +13,35 @@ export function Table({ children, className }: { children: React.ReactNode; clas
 }
 
 export function TableHeader({ children }: { children: React.ReactNode }) {
-  return <thead className="border-b border-gray-200 dark:border-gray-800">{children}</thead>;
+  return <thead className="bg-sunken/70 border-line border-b-[1.5px]">{children}</thead>;
 }
 
 export function TableBody({ children }: { children: React.ReactNode }) {
-  return <tbody className="divide-y divide-gray-200 dark:divide-gray-800">{children}</tbody>;
+  return <tbody className="divide-line divide-y">{children}</tbody>;
 }
 
 export function TableRow({
   children,
   className,
+  onClick,
+  selected,
 }: {
   children: React.ReactNode;
   className?: string;
+  onClick?: () => void;
+  selected?: boolean;
 }) {
   return (
-    <tr className={cn('transition-colors hover:bg-gray-100 dark:hover:bg-gray-900', className)}>
+    <tr
+      onClick={onClick}
+      aria-selected={selected || undefined}
+      className={cn(
+        'transition-colors duration-150',
+        onClick && 'cursor-pointer',
+        selected ? 'bg-action-soft' : 'hover:bg-page/70',
+        className
+      )}
+    >
       {children}
     </tr>
   );
@@ -46,7 +60,7 @@ export function TableHead({
     <th
       onClick={onClick}
       className={cn(
-        'bg-gray-100 px-5 py-3 text-left text-xs font-medium tracking-wide text-gray-500 uppercase dark:bg-gray-900',
+        'text-ink-muted h-11 px-4 text-left text-[12px] font-semibold whitespace-nowrap first:pl-5 last:pr-5',
         className
       )}
     >
@@ -67,7 +81,7 @@ export function TableCell({
   return (
     <td
       colSpan={colSpan}
-      className={cn('px-5 py-3.5 text-sm text-gray-700 dark:text-gray-300', className)}
+      className={cn('text-ink px-4 py-3 text-[14px] first:pl-5 last:pr-5', className)}
     >
       {children}
     </td>

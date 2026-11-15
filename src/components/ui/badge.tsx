@@ -1,48 +1,87 @@
 import React from 'react';
 import { cn } from '@/lib';
 
+export type ChipTone = 'live' | 'pending' | 'stale' | 'error' | 'selected' | 'neutral' | 'info';
+
+const toneClasses: Record<ChipTone, string> = {
+  live: 'bg-live-soft text-live-ink',
+  pending: 'bg-pending-soft text-pending-ink',
+  stale: 'border-[1.5px] border-dashed border-line-strong text-ink-muted',
+  error: 'bg-danger-soft text-danger-ink',
+  selected: 'bg-action text-on-action',
+  neutral: 'bg-sunken text-ink-muted',
+  info: 'bg-action-soft text-action',
+};
+
+const dotClasses: Record<ChipTone, string> = {
+  live: 'bg-live',
+  pending: 'bg-yellow-600',
+  stale: 'bg-stale',
+  error: 'bg-danger',
+  selected: 'bg-on-action',
+  neutral: 'bg-ink-muted',
+  info: 'bg-action',
+};
+
+interface StatusChipProps {
+  tone?: ChipTone;
+  /** Leading dot. Live chips pulse to show the value is moving. */
+  dot?: boolean;
+  children: React.ReactNode;
+  className?: string;
+  icon?: React.ReactNode;
+}
+
+/** Status is a fact with a time: "Live · 8s ago", never "Online!". */
+export function StatusChip({ tone = 'neutral', dot, children, className, icon }: StatusChipProps) {
+  return (
+    <span
+      className={cn(
+        'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold whitespace-nowrap',
+        toneClasses[tone],
+        className
+      )}
+    >
+      {dot && (
+        <span className="relative flex h-1.5 w-1.5">
+          {tone === 'live' && (
+            <span className="bg-live animate-pulse-ring absolute inset-0 rounded-full" />
+          )}
+          <span className={cn('relative h-1.5 w-1.5 rounded-full', dotClasses[tone])} />
+        </span>
+      )}
+      {icon}
+      {children}
+    </span>
+  );
+}
+
+/* ─── Legacy Badge API, mapped onto the status chip tones ─── */
 type BadgeColor = 'primary' | 'success' | 'danger' | 'warning' | 'info' | 'light' | 'dark';
-type BadgeSize = 'sm' | 'md';
+
+const badgeTone: Record<BadgeColor, ChipTone> = {
+  primary: 'info',
+  success: 'live',
+  danger: 'error',
+  warning: 'pending',
+  info: 'info',
+  light: 'neutral',
+  dark: 'neutral',
+};
 
 interface BadgeProps {
-  color?: BadgeColor;
-  size?: BadgeSize;
+  color?: BadgeColor | 'error';
+  size?: 'sm' | 'md';
   children: React.ReactNode;
   className?: string;
   startIcon?: React.ReactNode;
 }
 
-const colorMap: Record<BadgeColor, string> = {
-  primary: 'bg-brand-600/15 text-brand-400 dark:bg-brand-600/10 dark:text-brand-600',
-  success: 'bg-success-500/15 text-success-400 dark:bg-success-500/10 dark:text-success-600',
-  danger: 'bg-danger-500/15 text-danger-400 dark:bg-danger-500/10 dark:text-danger-600',
-  warning: 'bg-warning-500/15 text-warning-400 dark:bg-warning-500/10 dark:text-warning-600',
-  info: 'bg-info-500/15 text-info-400 dark:bg-info-500/10 dark:text-info-600',
-  light: 'bg-gray-200/50 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
-  dark: 'bg-gray-700/50 text-gray-200 dark:bg-gray-300 dark:text-gray-800',
-};
-
-// keep template compat - 'error' maps to danger
-const resolveColor = (c: string): BadgeColor => (c === 'error' ? 'danger' : (c as BadgeColor));
-
-export function Badge({
-  color = 'primary',
-  size = 'md',
-  children,
-  className,
-  startIcon,
-}: BadgeProps) {
+export function Badge({ color = 'primary', children, className, startIcon }: BadgeProps) {
+  const tone = color === 'error' ? 'error' : badgeTone[color];
   return (
-    <span
-      className={cn(
-        'inline-flex items-center justify-center gap-1 rounded-full text-center font-medium',
-        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm',
-        colorMap[resolveColor(color)],
-        className
-      )}
-    >
-      {startIcon}
+    <StatusChip tone={tone} className={className} icon={startIcon}>
       {children}
-    </span>
+    </StatusChip>
   );
 }

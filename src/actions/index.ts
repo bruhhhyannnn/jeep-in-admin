@@ -6,3 +6,4 @@ export * from './admins';
 export * from './audit-logs';
 export * from './organizations';
 export * from './stop-points';
+export * from './simulation';

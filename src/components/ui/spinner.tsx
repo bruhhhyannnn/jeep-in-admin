@@ -1,5 +1,4 @@
 import { cn } from '@/lib';
-import Image from 'next/image';
 
 interface SpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -7,29 +6,24 @@ interface SpinnerProps {
   className?: string;
 }
 
-const sizeMap = { sm: 'h-6 w-6', md: 'h-9 w-9', lg: 'h-12 w-12' };
+const sizeMap = {
+  sm: 'h-5 w-5 border-2',
+  md: 'h-8 w-8 border-[3px]',
+  lg: 'h-11 w-11 border-[3px]',
+};
 
 export function Spinner({ size = 'md', center = false, className }: SpinnerProps) {
   return (
     <div
+      role="status"
+      aria-label="Loading"
       className={cn(
-        'relative flex animate-bounce items-center justify-center',
+        'border-action/20 border-t-action animate-spin rounded-full',
         center && 'mx-auto',
         sizeMap[size],
         className
       )}
-    >
-      <Image
-        src="/jeep-in-favicon.png"
-        alt="JEEP-IN Logo"
-        sizes="(max-width: 768px) 48px, 64px"
-        className="object-contain"
-        fill
-        // TODO: why unoptimized
-        unoptimized
-      />
-      <div className="absolute inset-0 animate-spin rounded-full border-2 bg-linear-to-tr from-20% to-white blur-sm dark:to-gray-900" />
-    </div>
+    />
   );
 }
 
@@ -43,8 +37,11 @@ export function PageLoader() {
 
 export function PageError({ message }: { message: string }) {
   return (
-    <div className="flex h-[50vh] items-center justify-center">
-      <p className="text-danger-400 text-sm">{message}</p>
+    <div className="flex h-[50vh] items-center justify-center px-4">
+      <div className="border-danger/30 bg-card rounded-card max-w-md border-[1.5px] p-6 text-center shadow-sm">
+        <p className="text-ink text-heading">Something went wrong</p>
+        <p className="text-danger-ink mt-1.5 text-[14px]">{message}</p>
+      </div>
     </div>
   );
 }

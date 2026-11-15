@@ -1,34 +1,45 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
 import { format } from 'date-fns';
-import { PageBreadcrumb } from '@/components/common';
-import { Input, Select, Badge, Pagination, DataTable, PageError, Button } from '@/components/ui';
+import type { ColumnDef } from '@tanstack/react-table';
+import {
+  Button,
+  DataTable,
+  PageError,
+  Pagination,
+  StatusChip,
+  type ChipTone,
+} from '@/components/ui';
+import { Avatar, FilterChips, PageHeader, SearchField } from '@/components/common';
 import { useAuthStore } from '@/store';
 import { useAuditLogs } from '@/hooks';
 import type { AuditLogFilters } from '@/actions';
 import { toDate } from '@/lib';
-import type { ColumnDef } from '@tanstack/react-table';
 import type { AuditLog } from '@/types';
 
 const PER_PAGE = 20;
 
-const ROLE_OPTIONS = [
-  { value: '', label: 'All roles' },
-  { value: 'driver', label: 'Drivers' },
-  { value: 'admin', label: 'Admins' },
-];
+type RoleFilter = '' | 'driver' | 'admin';
 
-const ACTION_COLOR: Record<string, 'primary' | 'success' | 'danger' | 'warning' | 'info'> = {
-  CREATE: 'success',
-  UPDATE: 'primary',
-  DELETE: 'danger',
+const ACTION_TONE: Record<string, ChipTone> = {
+  CREATE: 'live',
+  UPDATE: 'info',
+  DELETE: 'error',
   ASSIGN: 'info',
-  UNASSIGN: 'warning',
-  LOGIN: 'info',
-  GPS_TOGGLE: 'warning',
+  UNASSIGN: 'pending',
+  LOGIN: 'neutral',
+  GPS: 'pending',
 };
+
+/** "GPS_TOGGLE_ON" → "Gps toggle on" */
+function readableAction(action: string) {
+  const s = action.toLowerCase().replace(/_/g, ' ');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+const dateInputClasses =
+  'font-data border-line-strong bg-card text-ink focus:border-action focus:ring-action/15 h-10 rounded-full border-[1.5px] px-4 text-[13px] shadow-sm focus:ring-[3px] focus:outline-none';
 
 export default function AuditLogsPage() {
   const { userProfile } = useAuthStore();
@@ -36,7 +47,7 @@ export default function AuditLogsPage() {
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [actorRole, setActorRole] = useState('');
+  const [actorRole, setActorRole] = useState<RoleFilter>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
@@ -62,50 +73,49 @@ export default function AuditLogsPage() {
   const logs = data?.data ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / PER_PAGE);
+  const hasFilters = !!(actorRole || dateFrom || dateTo || debouncedSearch);
 
   const columns: ColumnDef<AuditLog, unknown>[] = [
     {
       id: 'actor',
-      header: 'Actor',
+      header: 'Who',
       accessorFn: (log) => log.actorName,
       cell: ({ row: { original: log } }) => (
-        <div className="flex items-center gap-3">
-          <div className="bg-brand-600/10 text-brand-400 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-            {log.actorName?.charAt(0).toUpperCase() ?? '?'}
-          </div>
-          <div className="flex flex-col gap-1">
-            <p className="font-medium text-gray-800 dark:text-gray-200">{log.actorName}</p>
-            <div>
-              <Badge color="light" size="sm">
-                {log.actorRole}
-              </Badge>
-            </div>
+        <div className="flex items-center gap-2.5">
+          <Avatar name={log.actorName ?? '?'} />
+          <div className="min-w-0">
+            <p className="text-ink truncate font-semibold">{log.actorName}</p>
+            <p className="text-ink-muted text-[12px] capitalize">
+              {log.actorRole?.replace('_', ' ')}
+            </p>
           </div>
         </div>
       ),
     },
     {
       id: 'action',
-      header: 'Action',
+      header: 'What happened',
       accessorFn: (log) => log.action,
       cell: ({ row: { original: log } }) => (
-        <Badge color={getActionColor(log.action)} size="sm">
-          {log.action}
-        </Badge>
+        <StatusChip tone={ACTION_TONE[log.action.split('_')[0]] ?? 'neutral'}>
+          {readableAction(log.action)}
+        </StatusChip>
       ),
     },
     {
       id: 'target',
-      header: 'Target',
+      header: 'To',
       accessorFn: (log) => log.targetName ?? '',
       cell: ({ row: { original: log } }) =>
         log.targetName ? (
           <div>
-            <p className="text-xs text-gray-500">{log.targetType}</p>
-            <p className="text-gray-700 dark:text-gray-300">{log.targetName}</p>
+            <p className="text-ink">{log.targetName}</p>
+            <p className="text-ink-muted text-[12px] capitalize">
+              {log.targetType?.replace('_', ' ')}
+            </p>
           </div>
         ) : (
-          <span className="text-xs text-gray-600">—</span>
+          <span className="text-ink-muted">—</span>
         ),
     },
     {
@@ -113,17 +123,19 @@ export default function AuditLogsPage() {
       header: 'Details',
       accessorFn: (log) => log.details ?? '',
       cell: ({ row: { original: log } }) => (
-        <span className="text-gray-500">{log.details ?? '—'}</span>
+        <span className="text-ink-muted line-clamp-2 max-w-[320px] text-[13px]">
+          {log.details ?? '—'}
+        </span>
       ),
     },
     {
       id: 'date',
-      header: 'Date',
-      accessorFn: (log) => log.createdAt,
+      header: 'When',
+      accessorFn: (log) => toDate(log.createdAt)?.getTime() ?? 0,
       cell: ({ row: { original: log } }) => {
         const date = toDate(log.createdAt);
         return (
-          <time className="text-xs text-gray-500">
+          <time className="font-data text-ink-muted text-[12px] whitespace-nowrap">
             {date ? format(date, 'MMM d, yyyy · h:mm a') : '—'}
           </time>
         );
@@ -134,50 +146,53 @@ export default function AuditLogsPage() {
   if (error) return <PageError message={error.message} />;
 
   return (
-    <div className="space-y-6">
-      <PageBreadcrumb pageTitle="Audit Logs" />
+    <div className="space-y-5">
+      <PageHeader
+        title="Audit logs"
+        description={
+          isPending
+            ? 'Who did what, and when.'
+            : `${total.toLocaleString()} ${total === 1 ? 'entry' : 'entries'}${hasFilters ? ' match your filters' : ''} · who did what, and when`
+        }
+        actions={
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            placeholder="Search name, action, target"
+            className="sm:w-[280px]"
+          />
+        }
+      />
 
-      {/* Filters */}
-      <div className="flex flex-col flex-wrap gap-3">
-        <div className="flex flex-wrap gap-3">
-          <div className="w-40">
-            {/* TODO: revalidate all roles */}
-            <Select
-              options={ROLE_OPTIONS}
-              value={actorRole}
-              onChange={(e) => setActorRole(e.target.value)}
-              placeholder="All roles"
-            />
-          </div>
-
-          <div className="relative min-w-48 flex-1">
-            <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-600" />
-            <Input
-              placeholder="Search actor, action, target…"
-              className="pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Input
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <FilterChips
+          value={actorRole}
+          onChange={setActorRole}
+          options={[
+            { value: '', label: 'Everyone' },
+            { value: 'driver', label: 'Drivers' },
+            { value: 'admin', label: 'Admins' },
+          ]}
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <input
             type="date"
+            aria-label="From date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="w-36"
+            className={dateInputClasses}
           />
-          <span className="text-xs text-gray-600">to</span>
-          <Input
+          <span className="text-ink-muted text-[13px]">to</span>
+          <input
             type="date"
+            aria-label="To date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="w-36"
+            className={dateInputClasses}
           />
-
-          {(actorRole || dateFrom || dateTo || debouncedSearch) && (
+          {hasFilters && (
             <Button
+              variant="ghost"
               size="sm"
               onClick={() => {
                 setActorRole('');
@@ -192,28 +207,23 @@ export default function AuditLogsPage() {
         </div>
       </div>
 
-      {/* Count */}
-      <p className="text-sm text-gray-500">
-        {total.toLocaleString()} log{total !== 1 ? 's' : ''} found
-      </p>
-
       <DataTable
         columns={columns}
         data={logs}
         loading={isPending || isFetching}
-        emptyMessage="No logs found"
+        emptyMessage={hasFilters ? 'No entries match' : 'No activity yet'}
+        emptyHint={hasFilters ? 'Try a wider date range or clear the filters.' : undefined}
       />
 
       {totalPages > 1 && (
-        <div className="flex justify-center pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-ink-muted text-[13px]">
+            Page <span className="font-data text-ink">{page}</span> of{' '}
+            <span className="font-data text-ink">{totalPages}</span>
+          </p>
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
     </div>
   );
-}
-
-function getActionColor(action: string) {
-  const prefix = action.split('_')[0];
-  return ACTION_COLOR[prefix] ?? 'light';
 }

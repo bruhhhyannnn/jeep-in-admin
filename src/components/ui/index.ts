@@ -1,9 +1,10 @@
 export { Button } from './button';
-export { Input } from './input';
-export { Label, Select, Textarea } from './form';
-export { Badge } from './badge';
+export { Input, fieldClasses } from './input';
+export { Label, Select, Textarea, Switch, Field } from './form';
+export { Badge, StatusChip, type ChipTone } from './badge';
 export { Modal } from './modal';
-export { ConfirmDialog } from './confirm-dialog';
+export { SidePanel, PanelActionRow, PanelValue } from './side-panel';
+export { ConfirmDialog, ConfirmFacts } from './confirm-dialog';
 export { Dropdown, DropdownItem } from './dropdown';
 export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './table';
 export { DataTable } from './data-table';

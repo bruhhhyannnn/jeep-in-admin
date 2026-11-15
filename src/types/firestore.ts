@@ -56,6 +56,8 @@ export interface Jeepney {
   routeId: string | null;
   assignedDriverId: string | null;
   isActive: boolean;
+  /** A simulated unit from the "Simulate jeeps" panel (jeepneys/sim-0N); its driver is bot-0N. */
+  isBot?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useRef } from 'react';
 import { cn } from '@/lib';
@@ -14,6 +14,7 @@ export function Dropdown({ isOpen, onClose, children, className }: DropdownProps
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isOpen) return;
     const handle = (e: MouseEvent) => {
       if (
         ref.current &&
@@ -23,9 +24,16 @@ export function Dropdown({ isOpen, onClose, children, className }: DropdownProps
         onClose();
       }
     };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, [onClose]);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handle);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -33,7 +41,7 @@ export function Dropdown({ isOpen, onClose, children, className }: DropdownProps
     <div
       ref={ref}
       className={cn(
-        'dark:shadow-theme-lg-dark absolute right-0 z-30 mt-2 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-950',
+        'border-line bg-card animate-in fade-in-0 zoom-in-95 rounded-card absolute right-0 z-40 mt-2 border p-2 shadow-lg duration-150',
         className
       )}
     >
@@ -52,14 +60,15 @@ export function DropdownItem({
   className?: string;
 }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
       className={cn(
-        'flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-900',
+        'text-ink hover:bg-sunken flex h-11 w-full cursor-pointer items-center gap-3 rounded-full px-4 text-left text-[14px] font-semibold transition-colors',
         className
       )}
     >
       {children}
-    </div>
+    </button>
   );
 }

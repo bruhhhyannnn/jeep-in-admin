@@ -1,168 +1,146 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { PageBreadcrumb } from '@/components/common';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
   Button,
-  Input,
-  Label,
-  Select,
-  Badge,
-  Modal,
   ConfirmDialog,
   DataTable,
+  Input,
   PageError,
+  PanelActionRow,
+  SidePanel,
+  StatusChip,
 } from '@/components/ui';
-import { useAuthStore } from '@/store';
+import { Avatar, OrgPicker, PageHeader, SearchField, UnitTile } from '@/components/common';
 import {
-  useJeepneys,
-  useDrivers,
   useCreateJeepney,
-  useUpdateJeepney,
   useDeleteJeepney,
+  useDrivers,
+  useJeepneys,
+  useOrgScope,
   useOrganization,
-  useOrganizations,
+  useRoute,
+  useUpdateJeepney,
 } from '@/hooks';
-import { jeepneySchema, type JeepneyFormData } from '@/lib';
-import type { ColumnDef } from '@tanstack/react-table';
-import type { Jeepney } from '@/types';
-import { toDate } from '@/lib';
+import { jeepneySchema, toDate, type JeepneyFormData } from '@/lib';
+import type { DriverProfile, Jeepney } from '@/types';
+
+const fullName = (d: DriverProfile) => `${d.firstName} ${d.lastName}`;
 
 export default function JeepneysPage() {
-  const { userProfile } = useAuthStore();
-  const isSuperAdmin = userProfile?.role === 'super_admin';
-
-  const { data: allOrgs = [] } = useOrganizations();
-  const [selectedOrgId, setSelectedOrgId] = useState('');
-
-  useEffect(() => {
-    if (isSuperAdmin && !selectedOrgId && allOrgs.length > 0) {
-      setSelectedOrgId(allOrgs[0].id);
-    }
-  }, [isSuperAdmin, allOrgs, selectedOrgId]);
-
-  const orgId = isSuperAdmin ? selectedOrgId : (userProfile?.organizationId ?? '');
-  const { data: org } = useOrganization(orgId);
+  const { orgId } = useOrgScope();
+  const { data: org } = useOrganization(orgId || undefined);
   const routeId = org?.routeId ?? '';
+  const { data: route } = useRoute(routeId || undefined);
+
+  const { data: jeepneys = [], isPending, error } = useJeepneys(orgId);
+  const { data: drivers = [] } = useDrivers(orgId);
+  const driverById = new Map(drivers.map((d) => [d.uid, d]));
 
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
-  const { data: jeepneys = [], isPending, isFetching, error } = useJeepneys(orgId);
-  const { data: allDrivers = [] } = useDrivers(orgId);
-  const driverMap = Object.fromEntries(allDrivers.map((d) => [d.uid, d]));
+  const [panel, setPanel] = useState<{ mode: 'add' } | { mode: 'edit'; id: string }>({
+    mode: 'add',
+  });
+  const [panelOpen, setPanelOpen] = useState(false);
+  const openPanel = (next: typeof panel) => {
+    setPanel(next);
+    setPanelOpen(true);
+  };
+  const [deleting, setDeleting] = useState<Jeepney | null>(null);
   const deleteJeepney = useDeleteJeepney();
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query), 350);
-    return () => clearTimeout(t);
-  }, [query]);
+  const editing = panel.mode === 'edit' ? (jeepneys.find((j) => j.id === panel.id) ?? null) : null;
+  const withDriver = jeepneys.filter((j) => j.assignedDriverId).length;
+  const inactive = jeepneys.filter((j) => !j.isActive).length;
 
-  const filtered = debouncedQuery
-    ? jeepneys.filter((j) =>
-        `${j.plateNumber} ${j.jeepneyNumber}`.toLowerCase().includes(debouncedQuery.toLowerCase())
-      )
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? jeepneys.filter((j) => `${j.plateNumber} ${j.jeepneyNumber}`.toLowerCase().includes(q))
     : jeepneys;
-
-  const handleClose = () => {
-    setModalOpen(false);
-    setEditId(null);
-  };
 
   const columns: ColumnDef<Jeepney, unknown>[] = [
     {
-      accessorKey: 'jeepneyNumber',
-      header: 'Jeepney No.',
-      cell: ({ getValue }) => (
-        <span className="font-semibold text-gray-800 dark:text-gray-200">
-          #{String(getValue())}
-        </span>
+      id: 'unit',
+      header: 'Unit',
+      accessorFn: (j) => j.jeepneyNumber,
+      sortingFn: 'alphanumeric',
+      cell: ({ row: { original: j } }) => (
+        <div className="flex items-center gap-3">
+          <UnitTile number={j.jeepneyNumber} />
+          <div>
+            <p className="font-data text-ink text-[14px] font-bold">{j.plateNumber}</p>
+            <p className="text-ink-muted text-[12px]">Unit J{j.jeepneyNumber}</p>
+          </div>
+        </div>
       ),
     },
     {
-      accessorKey: 'plateNumber',
-      header: 'Plate Number',
-      cell: ({ getValue }) => (
-        <span className="font-mono text-sm text-gray-700 dark:text-gray-300">
-          {String(getValue())}
-        </span>
-      ),
-    },
-    {
-      id: 'assignment',
-      header: 'Driver',
+      id: 'driver',
+      header: 'Assigned driver',
       accessorFn: (j) => {
-        const d = j.assignedDriverId ? driverMap[j.assignedDriverId] : null;
-        return d ? `${d.firstName} ${d.lastName}` : '';
+        const d = j.assignedDriverId ? driverById.get(j.assignedDriverId) : undefined;
+        return d ? fullName(d) : '';
       },
       cell: ({ row: { original: j } }) => {
-        const d = j.assignedDriverId ? driverMap[j.assignedDriverId] : null;
+        const d = j.assignedDriverId ? driverById.get(j.assignedDriverId) : undefined;
         return d ? (
-          <div className="flex items-center gap-2">
-            <div className="bg-brand-600/20 text-brand-400 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-              {d.firstName.charAt(0).toUpperCase()}
-              {d.lastName.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                {d.firstName} {d.lastName}
-              </p>
-              <p className="text-xs text-gray-500">{d.email}</p>
-            </div>
+          <div className="flex items-center gap-2.5">
+            <Avatar name={fullName(d)} />
+            <span className="text-ink font-semibold">{fullName(d)}</span>
           </div>
         ) : (
-          <span className="text-xs text-gray-500">—</span>
+          <span className="text-ink-muted italic">No driver</span>
         );
       },
     },
     {
       id: 'status',
-      header: 'Status',
+      header: 'Condition',
       accessorFn: (j) => j.isActive,
-      cell: ({ row: { original: j } }) => (
-        <Badge color={j.isActive ? 'success' : 'danger'} size="sm">
-          {j.isActive ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
+      cell: ({ row: { original: j } }) =>
+        j.isActive ? (
+          <StatusChip tone="live" dot>
+            On the road
+          </StatusChip>
+        ) : (
+          <StatusChip tone="neutral">Inactive</StatusChip>
+        ),
     },
     {
       id: 'created',
-      header: 'Created',
-      accessorFn: (j) => j.createdAt,
+      header: 'Added',
+      accessorFn: (j) => toDate(j.createdAt)?.getTime() ?? 0,
       cell: ({ row: { original: j } }) => {
-        const d = toDate(j.createdAt);
-        return <span className="text-xs text-gray-500">{d ? format(d, 'MMM d, yyyy') : '—'}</span>;
+        const date = toDate(j.createdAt);
+        return (
+          <span className="text-ink-muted text-[13px]">
+            {date ? format(date, 'MMM d, yyyy') : '—'}
+          </span>
+        );
       },
     },
     {
-      id: 'actions',
-      header: 'Actions',
+      id: 'edit',
+      header: () => <span className="sr-only">Edit</span>,
       enableSorting: false,
       cell: ({ row: { original: j } }) => (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setEditId(j.id);
-              setModalOpen(true);
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              openPanel({ mode: 'edit', id: j.id });
             }}
-            className="hover:text-brand-400 cursor-pointer text-gray-600 transition-colors"
           >
-            <Pencil size={16} />
-          </button>
-          <button
-            onClick={() => setDeleteId(j.id)}
-            className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
-          >
-            <Trash2 size={16} />
-          </button>
+            Edit
+          </Button>
         </div>
       ),
     },
@@ -170,160 +148,211 @@ export default function JeepneysPage() {
 
   if (error) return <PageError message={error.message} />;
 
+  const deletingDriver = deleting?.assignedDriverId
+    ? driverById.get(deleting.assignedDriverId)
+    : undefined;
+
   return (
     <>
-      <div className="space-y-6">
-        <PageBreadcrumb pageTitle="Jeepneys" />
-
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-1 flex-wrap items-center gap-3">
-            {isSuperAdmin && (
-              <Select
-                options={allOrgs.map((o) => ({ value: o.id, label: `${o.id} — ${o.name}` }))}
-                value={selectedOrgId}
-                onChange={(e) => setSelectedOrgId(e.target.value)}
-                placeholder="Select organization…"
-              />
-            )}
-            <div className="relative max-w-sm min-w-48 flex-1">
-              <Search
-                size={15}
-                className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-600"
-              />
-              <Input
-                placeholder="Search by plate or number…"
-                className="pl-9"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-          </div>
-          <Button onClick={() => setModalOpen(true)} startIcon={<Plus size={16} />}>
-            Add Jeepney
-          </Button>
-        </div>
+      <div className="space-y-5">
+        <PageHeader
+          title="Jeepney units"
+          description={`${jeepneys.length} ${jeepneys.length === 1 ? 'unit' : 'units'} · ${withDriver} with a driver${inactive ? ` · ${inactive} inactive` : ''}`}
+          actions={
+            <>
+              <OrgPicker />
+              <SearchField value={query} onChange={setQuery} placeholder="Search plate or unit" />
+              <Button
+                startIcon={<Plus size={17} />}
+                onClick={() => openPanel({ mode: 'add' })}
+                disabled={!orgId}
+              >
+                Add unit
+              </Button>
+            </>
+          }
+        />
 
         <DataTable
           columns={columns}
           data={filtered}
-          loading={isPending || isFetching}
-          emptyMessage="No jeepneys found"
+          loading={!!orgId && isPending}
+          emptyMessage={q ? 'No units match your search' : 'No jeepney units yet'}
+          emptyHint={q ? undefined : 'Add a unit, then give it a driver on Assignments.'}
+          onRowClick={(j) => openPanel({ mode: 'edit', id: j.id })}
+          pageSize={20}
         />
       </div>
 
-      <Modal
-        isOpen={modalOpen}
-        onClose={handleClose}
-        title={editId ? 'Edit Jeepney' : 'Add Jeepney'}
-      >
-        <JeepneyForm
-          orgId={orgId}
-          routeId={routeId}
-          editId={editId}
-          onSuccess={() => {
-            handleClose();
-            toast.success(editId ? 'Jeepney updated' : 'Jeepney created');
-          }}
-          onCancel={handleClose}
-        />
-      </Modal>
+      <JeepneyPanel
+        isOpen={panelOpen}
+        unit={editing}
+        driver={editing?.assignedDriverId ? driverById.get(editing.assignedDriverId) : undefined}
+        orgId={orgId}
+        routeId={routeId}
+        scopeLine={org ? `${org.name}${route ? ` · ${route.name}` : ''}` : ''}
+        onClose={() => setPanelOpen(false)}
+        onDelete={(j) => setDeleting(j)}
+      />
 
       <ConfirmDialog
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
+        isOpen={!!deleting}
+        onClose={() => setDeleting(null)}
+        title={`Delete ${deleting?.plateNumber ?? 'this unit'}?`}
+        message={
+          deletingDriver
+            ? `${fullName(deletingDriver)} drives it today and will be left without a unit. The record is removed for good.`
+            : 'The record is removed for good. It disappears from every list and from the map.'
+        }
+        cancelLabel="Never mind"
+        confirmLabel="Delete unit"
+        loadingText="Deleting…"
+        isLoading={deleteJeepney.isPending}
         onConfirm={() =>
-          deleteJeepney.mutate(deleteId!, {
+          deleting &&
+          deleteJeepney.mutate(deleting.id, {
             onSuccess: () => {
-              setDeleteId(null);
-              toast.success('Jeepney deleted');
+              toast.success(`${deleting.plateNumber} deleted`);
+              setDeleting(null);
+              setPanelOpen(false);
             },
             onError: (e) => toast.error(e.message),
           })
         }
-        title="Delete jeepney"
-        message="This will permanently remove this jeepney unit. Any driver assignment will also be cleared."
-        confirmLabel="Delete"
-        isLoading={deleteJeepney.isPending}
       />
     </>
   );
 }
 
-/* ─── Jeepney Form (create & edit) ─── */
-function JeepneyForm({
+/* ─── Add / edit a unit ─── */
+function JeepneyPanel({
+  isOpen,
+  unit,
+  driver,
   orgId,
   routeId,
-  editId,
-  onSuccess,
-  onCancel,
+  scopeLine,
+  onClose,
+  onDelete,
 }: {
+  isOpen: boolean;
+  unit: Jeepney | null;
+  driver?: DriverProfile;
   orgId: string;
   routeId: string;
-  editId: string | null;
-  onSuccess: () => void;
-  onCancel: () => void;
+  scopeLine: string;
+  onClose: () => void;
+  onDelete: (unit: Jeepney) => void;
 }) {
-  const isEdit = !!editId;
+  const isEdit = !!unit;
   const createJeepney = useCreateJeepney();
   const updateJeepney = useUpdateJeepney();
-  const { data: existing } = useJeepneys(orgId);
-  const current = existing?.find((j) => j.id === editId);
+  const formId = 'jeepney-form';
 
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<JeepneyFormData>({ resolver: zodResolver(jeepneySchema) });
 
   useEffect(() => {
-    if (current) reset({ plateNumber: current.plateNumber, jeepneyNumber: current.jeepneyNumber });
-  }, [current, reset]);
+    if (!isOpen) return;
+    reset(
+      unit
+        ? { plateNumber: unit.plateNumber, jeepneyNumber: unit.jeepneyNumber }
+        : { plateNumber: '', jeepneyNumber: '' }
+    );
+  }, [isOpen, unit, reset]);
+
+  const isSaving = isSubmitting || createJeepney.isPending || updateJeepney.isPending;
 
   const onSubmit = handleSubmit((data) => {
-    if (isEdit) {
-      updateJeepney.mutate(
-        { id: editId!, data },
-        { onSuccess, onError: (e) => toast.error(e.message) }
-      );
-    } else {
-      createJeepney.mutate(
-        { data, organizationId: orgId, routeId },
-        { onSuccess, onError: (e) => toast.error(e.message) }
-      );
-    }
+    const done = {
+      onSuccess: () => {
+        toast.success(isEdit ? `${data.plateNumber} saved` : `${data.plateNumber} added`);
+        onClose();
+      },
+      onError: (e: Error) => toast.error(e.message),
+    };
+    if (unit) updateJeepney.mutate({ id: unit.id, data }, done);
+    else createJeepney.mutate({ data, organizationId: orgId, routeId }, done);
   });
 
-  const isPending = isSubmitting || createJeepney.isPending || updateJeepney.isPending;
-
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <Label required>Jeepney Number</Label>
-        <Input
-          placeholder="e.g. 01, A1, 12"
-          error={!!errors.jeepneyNumber}
-          hint={errors.jeepneyNumber?.message}
-          {...register('jeepneyNumber')}
-        />
-      </div>
-      <div>
-        <Label required>Plate Number</Label>
-        <Input
-          placeholder="e.g. ABC-1234"
-          error={!!errors.plateNumber}
-          hint={errors.plateNumber?.message}
-          {...register('plateNumber')}
-        />
-      </div>
-      <div className="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" size="sm" isLoading={isPending} loadingText="Saving…">
-          {isEdit ? 'Update' : 'Create'}
-        </Button>
-      </div>
-    </form>
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      busy={isSaving}
+      title={unit ? unit.plateNumber : 'Add a jeepney unit'}
+      subtitle={
+        unit
+          ? `Unit J${unit.jeepneyNumber} · ${driver ? `${fullName(driver)} drives it today` : 'no driver yet'}`
+          : scopeLine
+            ? `Joins the ${scopeLine} fleet.`
+            : 'Jeepney units · new record'
+      }
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={isEdit && !isDirty}
+            isLoading={isSaving}
+            loadingText="Saving…"
+          >
+            {isEdit ? 'Save changes' : 'Save this unit'}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={onSubmit} className="space-y-5" noValidate>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input
+            id="jeepneyNumber"
+            label="Unit number"
+            placeholder="14"
+            className="font-data"
+            autoComplete="off"
+            error={!!errors.jeepneyNumber}
+            hint={errors.jeepneyNumber?.message ?? 'Up to 2 characters. Shown as J14.'}
+            {...register('jeepneyNumber')}
+          />
+          <Input
+            id="plateNumber"
+            label="Plate number"
+            placeholder="ABC 1234"
+            className="font-data"
+            autoComplete="off"
+            error={!!errors.plateNumber}
+            hint={errors.plateNumber?.message ?? 'Up to 8 characters.'}
+            {...register('plateNumber')}
+          />
+        </div>
+
+        <div className="bg-sunken rounded-tile p-4">
+          <p className="text-ink text-[14px] font-bold">Drivers are assigned separately</p>
+          <p className="text-ink-muted mt-1 text-[13px] leading-snug">
+            Use Assignments to choose who drives this unit. Changes there take effect right away.
+          </p>
+        </div>
+
+        {unit && (
+          <PanelActionRow
+            tone="danger"
+            title="Taking it out of the fleet"
+            description="Deletes the record. Any driver assignment is cleared."
+            action={
+              <Button variant="danger-outline" size="sm" onClick={() => onDelete(unit)}>
+                Delete this unit
+              </Button>
+            }
+          />
+        )}
+      </form>
+    </SidePanel>
   );
 }

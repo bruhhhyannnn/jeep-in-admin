@@ -1,22 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
-import { PageBreadcrumb } from '@/components/common';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
   Button,
-  Input,
-  Label,
-  Select,
-  Badge,
-  Modal,
   ConfirmDialog,
+  ConfirmFacts,
   DataTable,
+  Field,
+  Input,
   PageError,
+  PanelActionRow,
+  Select,
+  SidePanel,
+  StatusChip,
+  Switch,
 } from '@/components/ui';
+import { PageHeader, SearchField } from '@/components/common';
 import {
   useOrganizations,
   useCreateOrganization,
@@ -25,36 +29,27 @@ import {
   useAllRoutes,
 } from '@/hooks';
 import { organizationSchema, type OrganizationFormData } from '@/lib';
-import type { ColumnDef } from '@tanstack/react-table';
 import type { Organization } from '@/types';
 
 export default function OrganizationsPage() {
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<Organization | null>(null);
 
-  const { data: organizations = [], isPending, isFetching, error } = useOrganizations();
+  const { data: organizations = [], isPending, error } = useOrganizations();
   const { data: allRoutes = [] } = useAllRoutes();
   const deleteOrganization = useDeleteOrganization();
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query), 350);
-    return () => clearTimeout(t);
-  }, [query]);
-
-  const filtered = debouncedQuery
-    ? organizations.filter(
-        (o) =>
-          o.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-          o.shortName.toLowerCase().includes(debouncedQuery.toLowerCase())
-      )
+  const active = organizations.filter((o) => o.isActive).length;
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? organizations.filter((o) => `${o.name} ${o.shortName}`.toLowerCase().includes(q))
     : organizations;
 
-  const handleClose = () => {
-    setModalOpen(false);
-    setEditId(null);
+  const openPanel = (id: string | null) => {
+    setEditId(id);
+    setPanelOpen(true);
   };
 
   const columns: ColumnDef<Organization, unknown>[] = [
@@ -63,22 +58,24 @@ export default function OrganizationsPage() {
       header: 'Organization',
       accessorFn: (o) => o.name,
       cell: ({ row: { original: o } }) => (
-        <div>
-          <p className="font-medium text-gray-800 dark:text-gray-200">{o.name}</p>
-          <p className="text-xs text-gray-500">{o.shortName}</p>
+        <div className="flex items-center gap-3">
+          <span className="font-data bg-action-soft text-action flex h-10 min-w-10 items-center justify-center rounded-[11px] px-2 text-[11px] font-bold">
+            {o.shortName}
+          </span>
+          <p className="text-ink font-semibold">{o.name}</p>
         </div>
       ),
     },
     {
       id: 'route',
       header: 'Route',
-      accessorFn: (o) => o.routeId,
+      accessorFn: (o) => allRoutes.find((r) => r.id === o.routeId)?.name ?? '',
       cell: ({ row: { original: o } }) => {
         const route = allRoutes.find((r) => r.id === o.routeId);
         return route ? (
-          <span className="text-sm text-gray-700 dark:text-gray-300">{route.name}</span>
+          <span className="text-ink">{route.name}</span>
         ) : (
-          <span className="text-xs text-gray-400">—</span>
+          <StatusChip tone="pending">No route</StatusChip>
         );
       },
     },
@@ -86,33 +83,31 @@ export default function OrganizationsPage() {
       id: 'status',
       header: 'Status',
       accessorFn: (o) => o.isActive,
-      cell: ({ row: { original: o } }) => (
-        <Badge color={o.isActive ? 'success' : 'danger'} size="sm">
-          {o.isActive ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
+      cell: ({ row: { original: o } }) =>
+        o.isActive ? (
+          <StatusChip tone="live" dot>
+            Active
+          </StatusChip>
+        ) : (
+          <StatusChip tone="neutral">Inactive</StatusChip>
+        ),
     },
     {
-      id: 'actions',
-      header: 'Actions',
+      id: 'edit',
+      header: () => <span className="sr-only">Edit</span>,
       enableSorting: false,
       cell: ({ row: { original: o } }) => (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setEditId(o.id);
-              setModalOpen(true);
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              openPanel(o.id);
             }}
-            className="hover:text-brand-400 cursor-pointer text-gray-600 transition-colors"
           >
-            <Pencil size={16} />
-          </button>
-          <button
-            onClick={() => setDeleteId(o.id)}
-            className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
-          >
-            <Trash2 size={16} />
-          </button>
+            Edit
+          </Button>
         </div>
       ),
     },
@@ -122,93 +117,101 @@ export default function OrganizationsPage() {
 
   return (
     <>
-      <div className="space-y-6">
-        <PageBreadcrumb pageTitle="Organizations" />
-
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="relative max-w-sm min-w-48 flex-1">
-            <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-600" />
-            <Input
-              placeholder="Search organizations…"
-              className="pl-9"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <Button onClick={() => setModalOpen(true)} startIcon={<Plus size={16} />}>
-            Add Organization
-          </Button>
-        </div>
+      <div className="space-y-5">
+        <PageHeader
+          title="Organizations"
+          description={`${organizations.length} ${organizations.length === 1 ? 'cooperative' : 'cooperatives'} · ${active} active`}
+          actions={
+            <>
+              <SearchField
+                value={query}
+                onChange={setQuery}
+                placeholder="Search name or short name"
+              />
+              <Button startIcon={<Plus size={17} />} onClick={() => openPanel(null)}>
+                Add organization
+              </Button>
+            </>
+          }
+        />
 
         <DataTable
           columns={columns}
           data={filtered}
-          loading={isPending || isFetching}
-          emptyMessage="No organizations found"
+          loading={isPending}
+          emptyMessage={q ? 'No organizations match' : 'No organizations yet'}
+          emptyHint={q ? undefined : 'Add a cooperative and give it a route.'}
+          onRowClick={(o) => openPanel(o.id)}
         />
       </div>
 
-      <Modal
-        isOpen={modalOpen}
-        onClose={handleClose}
-        title={editId ? 'Edit Organization' : 'Add Organization'}
-      >
-        <OrganizationForm
-          editId={editId}
-          organizations={organizations}
-          routes={allRoutes}
-          onSuccess={() => {
-            handleClose();
-            toast.success(editId ? 'Organization updated' : 'Organization created');
-          }}
-          onCancel={handleClose}
-        />
-      </Modal>
+      <OrganizationPanel
+        isOpen={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        org={organizations.find((o) => o.id === editId) ?? null}
+        routes={allRoutes}
+        onDelete={setDeleting}
+      />
 
       <ConfirmDialog
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
+        isOpen={!!deleting}
+        onClose={() => setDeleting(null)}
+        title={`Delete ${deleting?.name ?? 'this organization'}?`}
+        message="Everything that belongs to it is deleted with it. This can't be undone."
+        cancelLabel="Keep it"
+        confirmLabel="Delete organization"
+        loadingText="Deleting…"
+        isLoading={deleteOrganization.isPending}
         onConfirm={() =>
-          deleteOrganization.mutate(deleteId!, {
+          deleting &&
+          deleteOrganization.mutate(deleting.id, {
             onSuccess: () => {
-              setDeleteId(null);
-              toast.success('Organization deleted');
+              toast.success(`${deleting.name} deleted`);
+              setDeleting(null);
+              setPanelOpen(false);
             },
             onError: (e) => toast.error(e.message),
           })
         }
-        title="Delete organization"
-        message="This organization will be permanently deleted. Admin accounts linked to it will lose their organization reference."
-        confirmLabel="Delete"
-        isLoading={deleteOrganization.isPending}
-      />
+      >
+        <ConfirmFacts
+          items={[
+            {
+              label: 'Deleted',
+              text: 'Its jeepney units, drivers and admins (including their sign-ins), and its audit logs.',
+            },
+            { label: 'Kept', text: 'The route it uses, with its stops and fares.' },
+          ]}
+        />
+      </ConfirmDialog>
     </>
   );
 }
 
-/* ─── Organization Form ─── */
-function OrganizationForm({
-  editId,
-  organizations,
+/* ─── Add / edit an organization ─── */
+function OrganizationPanel({
+  isOpen,
+  onClose,
+  org,
   routes,
-  onSuccess,
-  onCancel,
+  onDelete,
 }: {
-  editId: string | null;
-  organizations: Organization[];
+  isOpen: boolean;
+  onClose: () => void;
+  org: Organization | null;
   routes: { id: string; name: string }[];
-  onSuccess: () => void;
-  onCancel: () => void;
+  onDelete: (org: Organization) => void;
 }) {
-  const isEdit = !!editId;
-  const current = organizations.find((o) => o.id === editId);
+  const isEdit = !!org;
   const createOrganization = useCreateOrganization();
   const updateOrganization = useUpdateOrganization();
+  const formId = 'organization-form';
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<OrganizationFormData>({
     resolver: zodResolver(organizationSchema),
@@ -216,82 +219,119 @@ function OrganizationForm({
   });
 
   useEffect(() => {
-    if (current) {
-      reset({
-        name: current.name,
-        shortName: current.shortName,
-        routeId: current.routeId,
-        isActive: current.isActive,
-      });
-    }
-  }, [current, reset]);
+    if (!isOpen) return;
+    reset(
+      org
+        ? {
+            name: org.name,
+            shortName: org.shortName,
+            routeId: org.routeId ?? '',
+            isActive: org.isActive,
+          }
+        : { name: '', shortName: '', routeId: '', isActive: true }
+    );
+  }, [isOpen, org, reset]);
+
+  const isSaving = isSubmitting || createOrganization.isPending || updateOrganization.isPending;
 
   const onSubmit = handleSubmit((data) => {
-    if (isEdit) {
-      updateOrganization.mutate(
-        { id: editId!, data },
-        { onSuccess, onError: (e) => toast.error(e.message) }
-      );
-    } else {
-      createOrganization.mutate(data, { onSuccess, onError: (e) => toast.error(e.message) });
-    }
+    const done = {
+      onSuccess: () => {
+        toast.success(isEdit ? `${data.name} saved` : `${data.name} added`);
+        onClose();
+      },
+      onError: (e: Error) => toast.error(e.message),
+    };
+    if (org) updateOrganization.mutate({ id: org.id, data }, done);
+    else createOrganization.mutate(data, done);
   });
 
-  const isPending = isSubmitting || createOrganization.isPending || updateOrganization.isPending;
-
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <Label required>Name</Label>
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      busy={isSaving}
+      title={org ? org.name : 'Add an organization'}
+      subtitle={
+        org ? `Short name ${org.shortName}` : 'A transport cooperative and the route it runs.'
+      }
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} isLoading={isSaving} loadingText="Saving…">
+            {isEdit ? 'Save changes' : 'Save this organization'}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={onSubmit} className="space-y-5" noValidate>
         <Input
-          placeholder="e.g. Ilocos Transport Cooperative"
+          id="org-name"
+          label="Name"
+          placeholder="Ilocos Transport Cooperative"
           error={!!errors.name}
           hint={errors.name?.message}
           {...register('name')}
         />
-      </div>
-
-      <div>
-        <Label required>Short Name</Label>
         <Input
-          placeholder="e.g. ITC"
+          id="org-short"
+          label="Short name"
+          placeholder="ITC"
+          className="font-data uppercase"
           disabled={isEdit}
-          hint={isEdit ? 'Short name cannot be changed after creation' : errors.shortName?.message}
           error={!isEdit && !!errors.shortName}
-          style={{ textTransform: 'uppercase' }}
+          hint={
+            isEdit
+              ? "Can't be changed after the organization is created."
+              : (errors.shortName?.message ?? 'Up to 10 characters. Used as its ID.')
+          }
           {...register('shortName')}
         />
-      </div>
+        <Field label="Route" htmlFor="org-route" error={errors.routeId?.message}>
+          <Select
+            id="org-route"
+            options={routes.map((r) => ({ value: r.id, label: r.name }))}
+            placeholder={routes.length ? 'Choose a route' : 'Create a route first'}
+            error={!!errors.routeId}
+            {...register('routeId')}
+          />
+        </Field>
 
-      <div>
-        <Label required>Route</Label>
-        <Select
-          options={routes.map((r) => ({ value: r.id, label: r.name }))}
-          placeholder="Select route…"
-          error={!!errors.routeId}
-          hint={errors.routeId?.message}
-          {...register('routeId')}
-        />
-      </div>
+        <div className="border-line rounded-tile flex items-center justify-between gap-4 border-[1.5px] p-4">
+          <div>
+            <p className="text-ink text-[14px] font-bold">Active</p>
+            <p className="text-ink-muted mt-0.5 text-[13px]">
+              Turn off to mark the cooperative inactive.
+            </p>
+          </div>
+          <Controller
+            control={control}
+            name="isActive"
+            render={({ field }) => (
+              <Switch
+                checked={!!field.value}
+                onCheckedChange={field.onChange}
+                aria-label="Active"
+              />
+            )}
+          />
+        </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          id="isActive"
-          type="checkbox"
-          className="accent-brand-600 h-4 w-4 cursor-pointer"
-          {...register('isActive')}
-        />
-        <Label htmlFor="isActive">Active</Label>
-      </div>
-
-      <div className="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" size="sm" isLoading={isPending} loadingText="Saving…">
-          {isEdit ? 'Update' : 'Create'}
-        </Button>
-      </div>
-    </form>
+        {org && (
+          <PanelActionRow
+            tone="danger"
+            title="Delete this organization"
+            description="Also deletes its units, drivers, admins and audit logs."
+            action={
+              <Button variant="danger-outline" size="sm" onClick={() => onDelete(org)}>
+                Delete organization
+              </Button>
+            }
+          />
+        )}
+      </form>
+    </SidePanel>
   );
 }

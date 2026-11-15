@@ -1,197 +1,238 @@
-﻿'use client';
+'use client';
 
-import { useState, useEffect } from 'react';
-import { Bus, Users, MapPin, Clock } from 'lucide-react';
-import { PageBreadcrumb } from '@/components/common';
-import { Badge, Spinner, Select } from '@/components/ui';
-import { useAuthStore } from '@/store';
-import { useDrivers, useJeepneys, useRoute, useOrganization, useOrganizations } from '@/hooks';
+import { useMemo, useState } from 'react';
+import { format } from 'date-fns';
+import { Bot, Clock, Route as RouteIcon } from 'lucide-react';
+import { Button, PageError } from '@/components/ui';
+import {
+  Notice,
+  OrgPicker,
+  PageHeader,
+  SearchField,
+  ShiftHoursPanel,
+  StatTile,
+} from '@/components/common';
+import {
+  FleetMap,
+  SimulationNotice,
+  SimulationPanel,
+  UnitRail,
+  buildFleet,
+  driverName,
+} from '@/components/fleet';
+import {
+  useDriverLocations,
+  useDrivers,
+  useJeepneys,
+  useNow,
+  useOrgScope,
+  useOrganization,
+  useRoute,
+  useStopPoints,
+} from '@/hooks';
+import { formatClock, isWithinHours, timeAgo } from '@/lib';
 
-export default function DashboardPage() {
-  const { userProfile } = useAuthStore();
-  const isSuperAdmin = userProfile?.role === 'super_admin';
+export default function FleetOverviewPage() {
+  const { orgId, isSuperAdmin, orgs } = useOrgScope();
+  const { data: org } = useOrganization(orgId || undefined);
+  const routeId = org?.routeId ?? '';
+  const { data: route } = useRoute(routeId || undefined);
 
-  const { data: allOrgs = [] } = useOrganizations();
-  const [selectedOrgId, setSelectedOrgId] = useState('');
-
-  useEffect(() => {
-    if (isSuperAdmin && !selectedOrgId && allOrgs.length > 0) {
-      setSelectedOrgId(allOrgs[0].id);
-    }
-  }, [isSuperAdmin, allOrgs, selectedOrgId]);
-
-  const orgId = isSuperAdmin ? selectedOrgId : (userProfile?.organizationId ?? '');
-  const { data: org } = useOrganization(orgId);
-  const { data: drivers = [], isPending: loadingDrivers } = useDrivers(orgId);
+  const { data: drivers = [], isPending: loadingDrivers, error } = useDrivers(orgId);
   const { data: jeepneys = [], isPending: loadingJeepneys } = useJeepneys(orgId);
-  const { data: route } = useRoute(org?.routeId);
+  const { data: stopPoints = [] } = useStopPoints(routeId || undefined);
+  const { locations, loading: loadingLocations, syncedAt } = useDriverLocations(orgId);
 
-  const activeDrivers = drivers.filter((d) => d.isActive);
-  const activeJeepneys = jeepneys.filter((j) => j.isActive);
-  const assignedJeepneys = jeepneys.filter((j) => j.assignedDriverId);
+  const now = useNow(5000);
+  const [query, setQuery] = useState('');
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [shiftOpen, setShiftOpen] = useState(false);
+  const [simulateOpen, setSimulateOpen] = useState(false);
+  // Bot jeeps for demos and testing; super admins only.
+  const canSimulate = isSuperAdmin && !!routeId && !!route;
 
-  // Determine working hours status
-  const isOpen = (() => {
-    if (!route?.workingHours) return null;
-    const now = new Date();
-    const [sh, sm] = route.workingHours.start.split(':').map(Number);
-    const [eh, em] = route.workingHours.end.split(':').map(Number);
-    const cur = now.getHours() * 60 + now.getMinutes();
-    return cur >= sh * 60 + sm && cur <= eh * 60 + em;
-  })();
+  const inShift = route?.workingHours ? isWithinHours(route.workingHours, new Date(now)) : true;
 
-  const stats = [
-    {
-      title: 'Active Drivers',
-      value: loadingDrivers ? '—' : activeDrivers.length,
-      icon: <Users size={20} />,
-      color: 'brand' as const,
-      sub: `${drivers.length} total`,
-    },
-    {
-      title: 'Total Jeepneys',
-      value: loadingJeepneys ? '—' : jeepneys.length,
-      icon: <Bus size={20} />,
-      color: 'success' as const,
-      sub: `${activeJeepneys.length} active`,
-    },
-    {
-      title: 'Currently Assigned',
-      value: loadingJeepneys ? '—' : assignedJeepneys.length,
-      icon: <MapPin size={20} />,
-      color: 'info' as const,
-      sub: 'jeepneys with a driver',
-    },
-    {
-      title: 'Working Hours',
-      value: route ? `${route.workingHours.start} – ${route.workingHours.end}` : '—',
-      icon: <Clock size={20} />,
-      color: isOpen ? ('success' as const) : ('warning' as const),
-      sub: isOpen === null ? 'loading…' : isOpen ? 'Currently open' : 'Currently closed',
-      badge: isOpen === null ? null : isOpen ? 'Open' : 'Closed',
-      badgeColor: isOpen ? 'success' : 'warning',
-    },
-  ];
+  const fleet = useMemo(
+    () => buildFleet(jeepneys, drivers, locations, now),
+    [jeepneys, drivers, locations, now]
+  );
+
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? fleet.filter((u) =>
+        [u.jeepney?.plateNumber, u.jeepney?.jeepneyNumber, driverName(u.driver)]
+          .join(' ')
+          .toLowerCase()
+          .includes(q)
+      )
+    : fleet;
+
+  const liveCount = fleet.filter((u) => u.state === 'live').length;
+  const staleCount = fleet.filter((u) => u.state === 'stale').length;
+  const withDriver = jeepneys.filter((j) => j.assignedDriverId).length;
+  const activeDrivers = drivers.filter((d) => d.isActive).length;
+  const loading = !!orgId && (loadingDrivers || loadingJeepneys);
+  const dash = (v: number) => (loading ? '—' : v);
+
+  if (error) return <PageError message={error.message} />;
+
+  if (isSuperAdmin && orgs.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Fleet overview" />
+        <Notice
+          icon={<RouteIcon size={17} />}
+          tone="info"
+          title="No organizations yet"
+          description="Create an organization and give it a route, then its fleet shows up here."
+        />
+      </div>
+    );
+  }
+
+  const statusLine = inShift ? (
+    <span className="text-ink-muted flex items-center gap-1.5 text-[12px] font-medium">
+      <span className="relative flex h-2 w-2">
+        <span className="bg-live animate-pulse-ring absolute inset-0 rounded-full" />
+        <span className="bg-live relative h-2 w-2 rounded-full" />
+      </span>
+      {syncedAt ? `Live · updated ${timeAgo(new Date(syncedAt), now)} ago` : 'Connecting…'}
+    </span>
+  ) : (
+    <span className="text-ink-muted flex items-center gap-1.5 text-[12px] font-medium">
+      <span className="border-stale h-2 w-2 rounded-full border-[1.5px]" />
+      Opens {formatClock(route?.workingHours.start)}
+    </span>
+  );
+
+  const emptyState = !inShift
+    ? {
+        title: 'No jeepneys on the map yet',
+        description: 'Markers appear as drivers switch sharing on at the terminal.',
+      }
+    : !loadingLocations && fleet.every((u) => !u.location)
+      ? {
+          title: 'No one is sharing right now',
+          description: 'Markers appear as soon as a driver switches sharing on.',
+        }
+      : null;
 
   return (
-    <div className="space-y-6">
-      <PageBreadcrumb pageTitle="Dashboard" />
+    <div className="space-y-5">
+      <PageHeader
+        title="Fleet overview"
+        description={
+          org
+            ? `${org.name}${route ? ` · ${route.name} · shift ${formatClock(route.workingHours.start)} – ${formatClock(route.workingHours.end)}` : ''}`
+            : 'Where every unit is right now.'
+        }
+        actions={
+          <>
+            <OrgPicker />
+            <SearchField value={query} onChange={setQuery} placeholder="Search plate or driver" />
+            {canSimulate && (
+              <Button
+                variant="outline"
+                startIcon={<Bot size={16} />}
+                onClick={() => setSimulateOpen(true)}
+              >
+                Simulate
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      {isSuperAdmin && (
-        <Select
-          options={allOrgs.map((o) => ({ value: o.id, label: `${o.id} — ${o.name}` }))}
-          value={selectedOrgId}
-          onChange={(e) => setSelectedOrgId(e.target.value)}
-          placeholder="Select organization…"
+      {isSuperAdmin && <SimulationNotice />}
+
+      {org && !routeId && (
+        <Notice
+          icon={<RouteIcon size={17} />}
+          tone="info"
+          title="This organization has no route yet"
+          description="Stops and shift hours appear once a super admin assigns a route."
         />
       )}
 
-      {/* Org header */}
-      {org && (
-        <div className="dark:shadow-theme-md-dark rounded-xl bg-violet-600 px-5 py-4 shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-white">Organization</p>
-              <h3 className="mt-0.5 text-base font-semibold text-white">{org.name}</h3>
-            </div>
-            {route && (
-              <div className="text-right">
-                <p className="text-xs text-white">Route</p>
-                <p className="mt-0.5 text-sm font-medium text-white">{route.name}</p>
-              </div>
-            )}
-          </div>
-        </div>
+      {!inShift && route && (
+        <Notice
+          icon={<Clock size={17} />}
+          title={`Outside shift hours — sharing opens at ${formatClock(route.workingHours.start)}`}
+          description={`An empty map right now is normal. ${format(new Date(now), 'EEE, MMM d · h:mm a')}`}
+          action={
+            <Button variant="outline" size="sm" onClick={() => setShiftOpen(true)}>
+              Change shift hours
+            </Button>
+          }
+        />
       )}
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <StatCard key={stat.title} {...stat} />
-        ))}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatTile
+          value={inShift ? dash(liveCount) : '—'}
+          label="Sharing live"
+          swatch={
+            <span className="bg-moment h-4 w-4 rounded-[5px] border-2 border-white shadow-sm" />
+          }
+        />
+        <StatTile
+          value={inShift ? dash(staleCount) : '—'}
+          label="Last known · no signal"
+          swatch={
+            <span className="border-stale h-4 w-4 rounded-[5px] border-[1.5px] border-dashed" />
+          }
+        />
+        <StatTile
+          value={
+            loading ? (
+              '—'
+            ) : (
+              <>
+                {withDriver}
+                <span className="text-ink-muted text-[17px] font-bold"> / {jeepneys.length}</span>
+              </>
+            )
+          }
+          label="Units with a driver"
+        />
+        <StatTile value={dash(activeDrivers)} label="Active drivers" />
       </div>
 
-      {/* Recent drivers table */}
-      <div className="dark:shadow-theme-sm-dark rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <h3 className="mb-4 text-sm font-semibold text-gray-800 dark:text-gray-200">
-          Recent Drivers
-        </h3>
-        {loadingDrivers ? (
-          <div className="flex h-40 items-center justify-center">
-            <Spinner />
-          </div>
-        ) : drivers.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-600">No drivers yet</p>
-        ) : (
-          <div className="space-y-2">
-            {drivers.slice(0, 5).map((d) => (
-              <div
-                key={d.uid}
-                className="dark:shadow-theme-sm-dark flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="bg-brand-600/20 text-brand-400 flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold">
-                    {d.firstName.charAt(0).toUpperCase()}
-                    {d.lastName.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                      {d.firstName} {d.lastName}
-                    </p>
-                    <p className="text-xs text-gray-500">{d.email}</p>
-                  </div>
-                </div>
-                <Badge color={d.isActive ? 'success' : 'danger'} size="sm">
-                  {d.isActive ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-  icon,
-  color = 'brand',
-  sub,
-  badge,
-  badgeColor,
-}: {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  color?: 'brand' | 'success' | 'warning' | 'info';
-  sub?: string;
-  badge?: string | null;
-  badgeColor?: string;
-}) {
-  const bgMap = {
-    brand: 'bg-brand-600/10 text-brand-400',
-    success: 'bg-success-500/10 text-success-400',
-    warning: 'bg-warning-500/10 text-warning-400',
-    info: 'bg-info-500/10 text-info-400',
-  };
-
-  return (
-    <div className="dark:shadow-theme-md-dark rounded-xl border border-gray-200 bg-white p-5 shadow-md dark:border-gray-800 dark:bg-gray-900">
-      <div className="flex items-start justify-between">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${bgMap[color]}`}>
-          {icon}
+      <div className="grid gap-4 lg:h-[calc(100dvh-330px)] lg:min-h-[480px] lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="h-[380px] sm:h-[440px] lg:h-full">
+          <FleetMap
+            units={visible}
+            stops={stopPoints}
+            selectedKey={selectedKey}
+            onSelect={setSelectedKey}
+            now={now}
+            emptyState={emptyState}
+          />
         </div>
-        {badge && (
-          <Badge color={badgeColor as 'success' | 'warning'} size="sm">
-            {badge}
-          </Badge>
-        )}
+        <div className="flex max-h-[560px] min-h-0 flex-col lg:h-full lg:max-h-none">
+          <UnitRail
+            units={visible}
+            selectedKey={selectedKey}
+            onSelect={setSelectedKey}
+            now={now}
+            inShift={inShift}
+            statusLine={statusLine}
+            loading={loading}
+          />
+        </div>
       </div>
-      <p className="mt-4 text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
-      <p className="mt-0.5 text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
-      {sub && <p className="mt-1 text-xs text-gray-600">{sub}</p>}
+
+      <ShiftHoursPanel isOpen={shiftOpen} onClose={() => setShiftOpen(false)} routeId={routeId} />
+      {canSimulate && (
+        <SimulationPanel
+          isOpen={simulateOpen}
+          onClose={() => setSimulateOpen(false)}
+          organizationId={orgId}
+          routeId={routeId}
+          routeName={route.name}
+        />
+      )}
     </div>
   );
 }

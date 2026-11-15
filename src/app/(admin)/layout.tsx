@@ -1,23 +1,36 @@
 'use client';
 
-import { AppSidebar, AppHeader, Backdrop } from '@/components/layout';
+import {
+  AppSidebar,
+  AppHeader,
+  Backdrop,
+  ProfilePanel,
+  SIDEBAR_WIDTH,
+  useSidebarCollapsed,
+} from '@/components/layout';
 import { ProtectedRoute } from '@/components/auth';
-import { useSidebarStore } from '@/store';
+import { cn } from '@/lib';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { isExpanded, isHovered, isMobileOpen } = useSidebarStore();
-
-  const marginLeft = isMobileOpen ? 'ml-0' : isExpanded || isHovered ? 'lg:ml-72' : 'lg:ml-20';
+  const collapsed = useSidebarCollapsed();
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen xl:flex">
+      <div className="bg-page min-h-dvh">
         <AppSidebar />
         <Backdrop />
-        <div className={`flex-1 transition-all duration-300 ease-in-out ${marginLeft}`}>
+        <div
+          className={cn(
+            'transition-[padding] duration-300 ease-(--ease-calm)',
+            collapsed ? SIDEBAR_WIDTH.collapsed : SIDEBAR_WIDTH.expanded
+          )}
+        >
           <AppHeader />
-          <main className="mx-auto max-w-screen-2xl p-4 md:p-6">{children}</main>
+          <main className="mx-auto w-full max-w-[1480px] px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+            {children}
+          </main>
         </div>
+        <ProfilePanel />
       </div>
     </ProtectedRoute>
   );

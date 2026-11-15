@@ -1,22 +1,23 @@
-﻿import Link from 'next/link';
-import { Bus } from 'lucide-react';
+import Link from 'next/link';
+import { MapPinOff } from 'lucide-react';
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-white px-4 dark:bg-gray-100">
-      <div className="bg-brand-600/10 flex h-16 w-16 items-center justify-center rounded-2xl">
-        <Bus size={32} className="text-brand-400" />
+    <div className="bg-page flex min-h-dvh items-center justify-center px-4 py-10">
+      <div className="border-line bg-card w-full max-w-[420px] rounded-[24px] border-[1.5px] p-7 text-center shadow-md">
+        <span className="bg-action-soft text-action mx-auto flex h-14 w-14 items-center justify-center rounded-full">
+          <MapPinOff size={26} />
+        </span>
+        <p className="font-data text-ink-muted mt-5 text-[13px] font-semibold">404</p>
+        <h1 className="text-title text-ink mt-1">This page isn&apos;t on the route</h1>
+        <p className="text-ink-muted mt-2 text-[15px]">It doesn&apos;t exist or was moved.</p>
+        <Link
+          href="/"
+          className="bg-action text-on-action hover:bg-action-hover mt-6 inline-flex h-[52px] w-full items-center justify-center rounded-full text-[15px] font-semibold transition-colors hover:no-underline"
+        >
+          Back to fleet overview
+        </Link>
       </div>
-      <div className="text-center">
-        <h1 className="text-5xl font-bold text-gray-800 dark:text-gray-200">404</h1>
-        <p className="mt-2 text-sm text-gray-500">This page doesn't exist or was moved.</p>
-      </div>
-      <Link
-        href="/"
-        className="bg-brand-600 hover:bg-brand-700 rounded-xl px-5 py-2.5 text-sm font-medium text-white"
-      >
-        Back to Dashboard
-      </Link>
     </div>
   );
 }

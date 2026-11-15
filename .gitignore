@@ -37,3 +37,5 @@ next-env.d.ts
 
 .env
 .env.local
+# Firestore backups made by scripts/backup-collections.ts — real data, never commit
+scripts/backups/

@@ -63,6 +63,9 @@ export function useUpdateWorkingHours() {
   return useMutation({
     mutationFn: ({ routeId, data }: { routeId: string; data: WorkingHoursFormData }) =>
       updateWorkingHours(routeId, data),
-    onSuccess: (_, { routeId }) => qc.invalidateQueries({ queryKey: ['route', routeId] }),
+    onSuccess: (_, { routeId }) => {
+      qc.invalidateQueries({ queryKey: ['route', routeId] });
+      qc.invalidateQueries({ queryKey: ['routes'] });
+    },
   });
 }

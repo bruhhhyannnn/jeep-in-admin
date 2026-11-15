@@ -19,6 +19,7 @@ export function useDriverLocations(organizationId: string) {
   const [locations, setLocations] = useState<DriverLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncedAt, setSyncedAt] = useState<number | null>(null);
 
   useEffect(() => {
     if (!organizationId) return;
@@ -38,6 +39,7 @@ export function useDriverLocations(organizationId: string) {
           } as DriverLocation;
         });
         setLocations(data);
+        setSyncedAt(Date.now());
         setLoading(false);
       },
       (err) => {
@@ -50,7 +52,7 @@ export function useDriverLocations(organizationId: string) {
     return () => unsubscribe();
   }, [organizationId]);
 
-  return { locations, loading, error };
+  return { locations, loading, error, syncedAt };
 }
 
 /**
@@ -61,6 +63,7 @@ export function useAllDriverLocations() {
   const [locations, setLocations] = useState<DriverLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncedAt, setSyncedAt] = useState<number | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'driver_locations'), where('isSharing', '==', true));
@@ -78,6 +81,7 @@ export function useAllDriverLocations() {
             } as DriverLocation;
           })
         );
+        setSyncedAt(Date.now());
         setLoading(false);
       },
       (err) => {
@@ -89,5 +93,5 @@ export function useAllDriverLocations() {
     return () => unsubscribe();
   }, []);
 
-  return { locations, loading, error };
+  return { locations, loading, error, syncedAt };
 }

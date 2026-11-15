@@ -7,10 +7,5 @@ export function Backdrop() {
 
   if (!isMobileOpen) return null;
 
-  return (
-    <div
-      className="fixed inset-0 z-20 bg-black/50 backdrop-blur-sm lg:hidden"
-      onClick={closeMobile}
-    />
-  );
+  return <div className="bg-scrim fixed inset-0 z-30 lg:hidden" onClick={closeMobile} />;
 }

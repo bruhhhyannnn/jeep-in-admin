@@ -1,242 +1,184 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, Bus, UserMinus, UserCheck, Copy, Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Check, Copy, KeyRound, Plus, RefreshCw } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { PageBreadcrumb } from '@/components/common';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
   Button,
-  Input,
-  Label,
-  Select,
-  Badge,
-  Modal,
   ConfirmDialog,
+  ConfirmFacts,
   DataTable,
+  Field,
+  Input,
   PageError,
+  PanelActionRow,
+  PanelValue,
+  Select,
+  SidePanel,
+  StatusChip,
 } from '@/components/ui';
-import { useAuthStore } from '@/store';
 import {
-  useDrivers,
-  useJeepneys,
+  Avatar,
+  FilterChips,
+  Notice,
+  OrgPicker,
+  PageHeader,
+  SearchField,
+  UnitTile,
+} from '@/components/common';
+import {
+  useAssignJeepney,
   useCreateDriver,
   useDeactivateDriver,
-  useReactivateDriver,
   useDeleteDriver,
-  useAssignJeepney,
-  useUnassignJeepney,
-  useUnassignedJeepneys,
+  useDrivers,
+  useJeepneys,
+  useOrgScope,
   useOrganization,
-  useOrganizations,
+  useReactivateDriver,
+  useUnassignJeepney,
+  useNow,
 } from '@/hooks';
-import { driverCreateSchema, type DriverCreateFormData } from '@/lib';
-import type { ColumnDef } from '@tanstack/react-table';
-import type { DriverProfile } from '@/types';
-import { toDate } from '@/lib';
+import {
+  driverCreateSchema,
+  generatePassword,
+  timeAgo,
+  toDate,
+  type DriverCreateFormData,
+} from '@/lib';
+import type { DriverProfile, Jeepney } from '@/types';
+
+type DriverFilter = 'all' | 'active' | 'inactive' | 'temp';
+type ConfirmKind = 'deactivate' | 'reactivate' | 'delete';
+
+const fullName = (d: DriverProfile) => `${d.firstName} ${d.lastName}`;
 
 export default function DriversPage() {
-  const { userProfile } = useAuthStore();
-  const isSuperAdmin = userProfile?.role === 'super_admin';
-
-  const { data: allOrgs = [] } = useOrganizations();
-  const [selectedOrgId, setSelectedOrgId] = useState('');
-
-  useEffect(() => {
-    if (isSuperAdmin && !selectedOrgId && allOrgs.length > 0) {
-      setSelectedOrgId(allOrgs[0].id);
-    }
-  }, [isSuperAdmin, allOrgs, selectedOrgId]);
-
-  const orgId = isSuperAdmin ? selectedOrgId : (userProfile?.organizationId ?? '');
-  const { data: org } = useOrganization(orgId);
+  const { orgId } = useOrgScope();
+  const { data: org } = useOrganization(orgId || undefined);
   const routeId = org?.routeId ?? '';
 
+  const { data: drivers = [], isPending, error } = useDrivers(orgId);
+  const { data: jeepneys = [] } = useJeepneys(orgId);
+  const jeepneyById = new Map(jeepneys.map((j) => [j.id, j]));
+
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [createOpen, setCreateOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deactivateId, setDeactivateId] = useState<string | null>(null);
-  const [reactivateId, setReactivateId] = useState<string | null>(null);
-  const [assignId, setAssignId] = useState<string | null>(null);
-  const [unassignTarget, setUnassignTarget] = useState<{
-    driverUid: string;
-    jeepneyId: string;
-  } | null>(null);
-  const [copiedUid, setCopiedUid] = useState<string | null>(null);
+  const [filter, setFilter] = useState<DriverFilter>('all');
+  const [addOpen, setAddOpen] = useState(false);
+  const [editUid, setEditUid] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<{ kind: ConfirmKind; driver: DriverProfile } | null>(null);
 
-  const { data: drivers = [], isPending, isFetching, error } = useDrivers(orgId);
-  const { data: allJeepneys = [] } = useJeepneys(orgId);
-  const { data: unassignedJeepneys = [] } = useUnassignedJeepneys(orgId);
+  const editing = drivers.find((d) => d.uid === editUid) ?? null;
 
-  const jeepneyMap = Object.fromEntries(allJeepneys.map((j) => [j.id, j]));
-  // const updateDriver = useUpdateDriver();
-  const deactivateDriver = useDeactivateDriver();
-  const reactivateDriver = useReactivateDriver();
-  const deleteDriver = useDeleteDriver();
-  const assignJeepney = useAssignJeepney();
-  const unassignJeepney = useUnassignJeepney();
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query), 350);
-    return () => clearTimeout(t);
-  }, [query]);
-
-  const filtered = debouncedQuery
-    ? drivers.filter((d) =>
-        `${d.firstName} ${d.lastName} ${d.email}`
-          .toLowerCase()
-          .includes(debouncedQuery.toLowerCase())
-      )
-    : drivers;
-
-  const handleCopyEmail = async (email: string, uid: string) => {
-    await navigator.clipboard.writeText(email);
-    setCopiedUid(uid);
-    setTimeout(() => setCopiedUid(null), 2000);
-    toast.success('Email copied');
+  const counts = {
+    all: drivers.length,
+    active: drivers.filter((d) => d.isActive).length,
+    inactive: drivers.filter((d) => !d.isActive).length,
+    temp: drivers.filter((d) => d.mustChangePassword).length,
   };
+
+  const q = query.trim().toLowerCase();
+  const filtered = drivers
+    .filter((d) =>
+      filter === 'active'
+        ? d.isActive
+        : filter === 'inactive'
+          ? !d.isActive
+          : filter === 'temp'
+            ? d.mustChangePassword
+            : true
+    )
+    .filter((d) => !q || `${fullName(d)} ${d.email}`.toLowerCase().includes(q));
 
   const columns: ColumnDef<DriverProfile, unknown>[] = [
     {
       id: 'name',
       header: 'Driver',
-      accessorFn: (d) => `${d.firstName} ${d.lastName}`,
+      accessorFn: (d) => fullName(d),
       cell: ({ row: { original: d } }) => (
         <div className="flex items-center gap-3">
-          <div className="bg-brand-600/20 text-brand-400 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-            {d.firstName.charAt(0).toUpperCase()}
-            {d.lastName.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <p className="font-medium text-gray-800 dark:text-gray-200">
-              {d.firstName} {d.lastName}
-            </p>
-            <p className="text-xs text-gray-500">{d.email}</p>
+          <Avatar name={fullName(d)} size="md" />
+          <div className="min-w-0">
+            <p className="text-ink truncate font-semibold">{fullName(d)}</p>
+            <p className="text-ink-muted truncate text-[12px]">{d.email}</p>
           </div>
         </div>
       ),
     },
     {
-      id: 'status',
-      header: 'Status',
-      accessorFn: (d) => d.isActive,
-      cell: ({ row: { original: d } }) => (
-        <Badge color={d.isActive ? 'success' : 'danger'} size="sm">
-          {d.isActive ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
-    },
-    {
-      id: 'jeepney',
-      header: 'Assigned Jeepney',
-      accessorFn: (d) => {
-        const j = d.assignedJeepneyId ? jeepneyMap[d.assignedJeepneyId] : null;
-        return j ? `${j.jeepneyNumber} ${j.plateNumber}` : '';
-      },
+      id: 'unit',
+      header: 'Unit today',
+      accessorFn: (d) =>
+        d.assignedJeepneyId ? jeepneyById.get(d.assignedJeepneyId)?.plateNumber : '',
       cell: ({ row: { original: d } }) => {
-        const j = d.assignedJeepneyId ? jeepneyMap[d.assignedJeepneyId] : null;
+        const j = d.assignedJeepneyId ? jeepneyById.get(d.assignedJeepneyId) : undefined;
         return j ? (
-          <div>
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-              #{j.jeepneyNumber}
-            </p>
-            <p className="font-mono text-xs text-gray-500">{j.plateNumber}</p>
+          <div className="flex items-center gap-2.5">
+            <UnitTile number={j.jeepneyNumber} size="sm" />
+            <span className="font-data text-ink text-[13px] font-semibold">{j.plateNumber}</span>
           </div>
         ) : (
-          <span className="text-xs text-gray-500">—</span>
+          <span className="text-ink-muted">—</span>
         );
       },
     },
     {
-      id: 'mustChange',
-      header: 'Password',
+      id: 'signin',
+      header: 'Sign-in',
+      accessorFn: (d) => d.mustChangePassword,
       cell: ({ row: { original: d } }) =>
         d.mustChangePassword ? (
-          <Badge color="warning" size="sm">
-            Must change
-          </Badge>
+          <StatusChip tone="pending">Temporary password</StatusChip>
         ) : (
-          <Badge color="success" size="sm">
-            Set
-          </Badge>
+          <StatusChip tone="neutral">Own password</StatusChip>
         ),
     },
     {
       id: 'created',
-      header: 'Created',
-      accessorFn: (d) => d.createdAt,
+      header: 'Added',
+      accessorFn: (d) => toDate(d.createdAt)?.getTime() ?? 0,
       cell: ({ row: { original: d } }) => {
         const date = toDate(d.createdAt);
         return (
-          <span className="text-xs text-gray-500">{date ? format(date, 'MMM d, yyyy') : '—'}</span>
+          <span className="text-ink-muted text-[13px]">
+            {date ? format(date, 'MMM d, yyyy') : '—'}
+          </span>
         );
       },
     },
     {
-      id: 'actions',
-      header: 'Actions',
+      id: 'status',
+      header: 'Status',
+      accessorFn: (d) => d.isActive,
+      cell: ({ row: { original: d } }) =>
+        d.isActive ? (
+          <StatusChip tone="live" dot>
+            Active
+          </StatusChip>
+        ) : (
+          <StatusChip tone="neutral">Inactive</StatusChip>
+        ),
+    },
+    {
+      id: 'edit',
+      header: () => <span className="sr-only">Edit</span>,
       enableSorting: false,
       cell: ({ row: { original: d } }) => (
-        <div className="flex items-center gap-3">
-          <button
-            title="Copy email"
-            onClick={() => handleCopyEmail(d.email, d.uid)}
-            className="cursor-pointer text-gray-600 transition-colors hover:text-gray-300"
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditUid(d.uid);
+            }}
           >
-            {copiedUid === d.uid ? (
-              <Check size={16} className="text-success-400" />
-            ) : (
-              <Copy size={16} />
-            )}
-          </button>
-          {d.isActive && (
-            <button
-              title="Deactivate driver"
-              onClick={() => setDeactivateId(d.uid)}
-              className="hover:text-warning-400 cursor-pointer text-gray-600 transition-colors"
-            >
-              <UserMinus size={16} />
-            </button>
-          )}
-          {!d.isActive && (
-            <button
-              title="Reactivate driver"
-              onClick={() => setReactivateId(d.uid)}
-              className="hover:text-success-400 cursor-pointer text-gray-600 transition-colors"
-            >
-              <UserCheck size={16} />
-            </button>
-          )}
-          {!d.assignedJeepneyId && d.isActive && (
-            <button
-              title="Assign jeepney"
-              onClick={() => setAssignId(d.uid)}
-              className="hover:text-brand-400 cursor-pointer text-gray-600 transition-colors"
-            >
-              <Bus size={16} />
-            </button>
-          )}
-          {d.assignedJeepneyId && (
-            <button
-              title="Unassign jeepney"
-              onClick={() =>
-                setUnassignTarget({ driverUid: d.uid, jeepneyId: d.assignedJeepneyId! })
-              }
-              className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
-            >
-              <Bus size={16} />
-            </button>
-          )}
-          <button
-            title="Delete driver"
-            onClick={() => setDeleteId(d.uid)}
-            className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
-          >
-            <Trash2 size={16} />
-          </button>
+            Edit
+          </Button>
         </div>
       ),
     },
@@ -246,299 +188,540 @@ export default function DriversPage() {
 
   return (
     <>
-      <div className="space-y-6">
-        <PageBreadcrumb pageTitle="Drivers" />
+      <div className="space-y-5">
+        <PageHeader
+          title="Drivers"
+          description={`${counts.all} ${counts.all === 1 ? 'record' : 'records'} · ${counts.active} active, ${counts.inactive} inactive`}
+          actions={
+            <>
+              <OrgPicker />
+              <SearchField value={query} onChange={setQuery} placeholder="Search name or email" />
+              <Button
+                startIcon={<Plus size={17} />}
+                onClick={() => setAddOpen(true)}
+                disabled={!orgId}
+              >
+                Add driver
+              </Button>
+            </>
+          }
+        />
 
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-1 flex-wrap items-center gap-3">
-            {isSuperAdmin && (
-              <Select
-                options={allOrgs.map((o) => ({ value: o.id, label: `${o.id} — ${o.name}` }))}
-                value={selectedOrgId}
-                onChange={(e) => setSelectedOrgId(e.target.value)}
-                placeholder="Select organization…"
-              />
-            )}
-            <div className="relative max-w-sm min-w-48 flex-1">
-              <Search
-                size={15}
-                className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-600"
-              />
-              <Input
-                placeholder="Search drivers…"
-                className="pl-9"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-          </div>
-          <Button onClick={() => setCreateOpen(true)} startIcon={<Plus size={16} />}>
-            Add Driver
-          </Button>
-        </div>
+        <FilterChips
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'all', label: 'All', count: counts.all },
+            { value: 'active', label: 'Active', count: counts.active },
+            { value: 'inactive', label: 'Inactive', count: counts.inactive },
+            { value: 'temp', label: 'Temporary password', count: counts.temp },
+          ]}
+        />
 
         <DataTable
           columns={columns}
           data={filtered}
-          loading={isPending || isFetching}
-          emptyMessage="No drivers found"
+          loading={!!orgId && isPending}
+          emptyMessage={q || filter !== 'all' ? 'No drivers match' : 'No drivers yet'}
+          emptyHint={
+            q || filter !== 'all'
+              ? 'Try another name or filter.'
+              : 'Add a driver, then give them a unit on Assignments.'
+          }
+          onRowClick={(d) => setEditUid(d.uid)}
+          pageSize={20}
         />
       </div>
 
-      {/* Create modal */}
-      <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Add Driver">
-        <DriverCreateForm
-          orgId={orgId}
-          routeId={routeId}
-          onSuccess={() => {
-            setCreateOpen(false);
-            toast.success('Driver created');
-          }}
-          onCancel={() => setCreateOpen(false)}
-        />
-      </Modal>
-
-      {/* Assign jeepney modal */}
-      <Modal isOpen={!!assignId} onClose={() => setAssignId(null)} title="Assign Jeepney">
-        {assignId && (
-          <AssignJeepneyForm
-            driverUid={assignId}
-            jeepneys={unassignedJeepneys}
-            onSuccess={() => {
-              setAssignId(null);
-              toast.success('Jeepney assigned');
-            }}
-            onCancel={() => setAssignId(null)}
-            isPending={assignJeepney.isPending}
-            onAssign={(jeepneyId) => assignJeepney.mutate({ driverUid: assignId, jeepneyId })}
-          />
-        )}
-      </Modal>
-
-      {/* Unassign jeepney confirm */}
-      <ConfirmDialog
-        isOpen={!!unassignTarget}
-        onClose={() => setUnassignTarget(null)}
-        onConfirm={() =>
-          unassignJeepney.mutate(unassignTarget!, {
-            onSuccess: () => {
-              setUnassignTarget(null);
-              toast.success('Jeepney unassigned');
-            },
-            onError: (e) => toast.error(e.message),
-          })
-        }
-        title="Unassign jeepney"
-        message="This will remove the jeepney assignment from this driver. The jeepney will become available for reassignment."
-        confirmLabel="Unassign"
-        variant="danger"
-        isLoading={unassignJeepney.isPending}
+      <DriverCreatePanel
+        isOpen={addOpen}
+        onClose={() => setAddOpen(false)}
+        orgId={orgId}
+        routeId={routeId}
       />
 
-      {/* Deactivate confirm */}
-      <ConfirmDialog
-        isOpen={!!deactivateId}
-        onClose={() => setDeactivateId(null)}
-        onConfirm={() =>
-          deactivateDriver.mutate(deactivateId!, {
-            onSuccess: () => {
-              setDeactivateId(null);
-              toast.success('Driver deactivated');
-            },
-            onError: (e) => toast.error(e.message),
-          })
-        }
-        title="Deactivate driver"
-        message="This driver will be marked inactive and their current session will be revoked. Their jeepney assignment will also be cleared."
-        confirmLabel="Deactivate"
-        variant="danger"
-        isLoading={deactivateDriver.isPending}
+      <DriverEditPanel
+        driver={editing}
+        jeepneys={jeepneys}
+        onClose={() => setEditUid(null)}
+        onAction={(kind, driver) => setConfirm({ kind, driver })}
       />
 
-      {/* Reactivate confirm */}
-      <ConfirmDialog
-        isOpen={!!reactivateId}
-        onClose={() => setReactivateId(null)}
-        onConfirm={() =>
-          reactivateDriver.mutate(reactivateId!, {
-            onSuccess: () => {
-              setReactivateId(null);
-              toast.success('Driver reactivated');
-            },
-            onError: (e) => toast.error(e.message),
-          })
-        }
-        title="Reactivate driver"
-        message="This driver will be marked active again and can log in to the app."
-        confirmLabel="Reactivate"
-        variant="primary"
-        isLoading={reactivateDriver.isPending}
-      />
-
-      {/* Delete confirm */}
-      <ConfirmDialog
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
-        onConfirm={() =>
-          deleteDriver.mutate(deleteId!, {
-            onSuccess: () => {
-              setDeleteId(null);
-              toast.success('Driver deleted');
-            },
-            onError: (e) => toast.error(e.message),
-          })
-        }
-        title="Delete driver"
-        message="This will permanently delete the driver account from the system. This cannot be undone."
-        confirmLabel="Delete"
-        variant="danger"
-        isLoading={deleteDriver.isPending}
+      <DriverConfirm
+        confirm={confirm}
+        jeepneyById={jeepneyById}
+        onClose={() => setConfirm(null)}
+        onDeleted={() => setEditUid(null)}
       />
     </>
   );
 }
 
-/* ─── Create Form ─── */
-function DriverCreateForm({
+/* ─── Add a driver ─── */
+function DriverCreatePanel({
+  isOpen,
+  onClose,
   orgId,
   routeId,
-  onSuccess,
-  onCancel,
 }: {
+  isOpen: boolean;
+  onClose: () => void;
   orgId: string;
   routeId: string;
-  onSuccess: () => void;
-  onCancel: () => void;
 }) {
   const createDriver = useCreateDriver();
+  const [copied, setCopied] = useState(false);
+  const formId = 'driver-create-form';
+
   const {
     register,
     handleSubmit,
+    reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
-  } = useForm<DriverCreateFormData>({
-    resolver: zodResolver(driverCreateSchema),
-  });
+  } = useForm<DriverCreateFormData>({ resolver: zodResolver(driverCreateSchema) });
+
+  useEffect(() => {
+    if (isOpen) reset({ firstName: '', lastName: '', email: '', password: generatePassword() });
+  }, [isOpen, reset]);
+
+  const password = watch('password') ?? '';
+  const isSaving = isSubmitting || createDriver.isPending;
+
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(password);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy. Select the password and copy it yourself.');
+    }
+  };
 
   const onSubmit = handleSubmit((data) => {
     createDriver.mutate(
       { data, organizationId: orgId, routeId },
-      { onSuccess, onError: (e) => toast.error(e.message) }
+      {
+        onSuccess: () => {
+          toast.success(`${data.firstName} ${data.lastName} added`);
+          onClose();
+        },
+        onError: (e) => toast.error(e.message),
+      }
     );
   });
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label required>First Name</Label>
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      busy={isSaving}
+      title="Add a driver"
+      subtitle="They sign in to the driver app with this email."
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} isLoading={isSaving} loadingText="Saving…">
+            Save this driver
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={onSubmit} className="space-y-5" noValidate>
+        {!routeId && (
+          <Notice
+            icon={<KeyRound size={16} />}
+            tone="info"
+            title="This organization has no route yet"
+            description="The driver is saved without a route until one is assigned."
+          />
+        )}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
+            id="firstName"
+            label="First name"
+            autoComplete="off"
             error={!!errors.firstName}
             hint={errors.firstName?.message}
             {...register('firstName')}
           />
-        </div>
-        <div>
-          <Label required>Last Name</Label>
           <Input
+            id="lastName"
+            label="Last name"
+            autoComplete="off"
             error={!!errors.lastName}
             hint={errors.lastName?.message}
             {...register('lastName')}
           />
         </div>
-      </div>
-      <div>
-        <Label required>Email</Label>
         <Input
+          id="email"
           type="email"
+          label="Email"
+          autoComplete="off"
+          placeholder="name@email.com"
           error={!!errors.email}
-          hint={errors.email?.message}
+          hint={errors.email?.message ?? "This is what they type on the driver app's sign-in."}
           {...register('email')}
         />
-      </div>
-      <div>
-        {/* TODO: UI improvement of using eye icon */}
-        <Label required>Temporary Password</Label>
-        <Input
-          type="password"
-          placeholder="Min. 8 characters"
-          error={!!errors.password}
-          hint={errors.password?.message}
-          {...register('password')}
-        />
-        <p className="mt-1 text-xs text-gray-600">
-          Share this password with the driver. They will be prompted to change it on first login.
-        </p>
-      </div>
-      <div className="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          size="sm"
-          isLoading={isSubmitting || createDriver.isPending}
-          loadingText="Creating…"
+
+        <Field
+          label="Password · made for you"
+          htmlFor="password"
+          error={errors.password?.message}
+          hint="Share it with the driver. They choose their own the first time they sign in."
         >
-          Create Driver
-        </Button>
-      </div>
-    </form>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative flex-1">
+              <input
+                id="password"
+                autoComplete="off"
+                spellCheck={false}
+                className="font-data border-line-strong bg-sunken text-ink focus:border-action focus:ring-action/15 rounded-input h-12 w-full border-[1.5px] pr-24 pl-4 text-[15px] focus:ring-[3px] focus:outline-none"
+                {...register('password')}
+              />
+              <button
+                type="button"
+                onClick={copyPassword}
+                className="text-action hover:bg-action-soft absolute top-1/2 right-2 flex h-8 -translate-y-1/2 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold"
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+            <Button
+              variant="outline"
+              className="h-12"
+              startIcon={<RefreshCw size={15} />}
+              onClick={() => setValue('password', generatePassword(), { shouldValidate: true })}
+            >
+              Make a new one
+            </Button>
+          </div>
+        </Field>
+      </form>
+    </SidePanel>
   );
 }
 
-/* ─── Assign Jeepney Form ─── */
-function AssignJeepneyForm({
+/* ─── Edit a driver ─── */
+function DriverEditPanel({
+  driver,
   jeepneys,
-  onSuccess,
-  onCancel,
-  isPending,
-  onAssign,
+  onClose,
+  onAction,
 }: {
-  driverUid: string;
-  jeepneys: { id: string; plateNumber: string; jeepneyNumber: string }[];
-  onSuccess: () => void;
-  onCancel: () => void;
-  isPending: boolean;
-  onAssign: (jeepneyId: string) => void;
+  driver: DriverProfile | null;
+  jeepneys: Jeepney[];
+  onClose: () => void;
+  onAction: (kind: ConfirmKind, driver: DriverProfile) => void;
 }) {
-  const [selected, setSelected] = useState('');
+  const assign = useAssignJeepney();
+  const unassign = useUnassignJeepney();
+  const now = useNow(30_000);
+  const [unitId, setUnitId] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  // Keep the last driver around while the panel animates closed.
+  const [shown, setShown] = useState<DriverProfile | null>(driver);
+  useEffect(() => {
+    if (driver) setShown(driver);
+  }, [driver]);
+
+  useEffect(() => {
+    setUnitId(driver?.assignedJeepneyId ?? '');
+  }, [driver?.uid, driver?.assignedJeepneyId]);
+
+  const d = driver ?? shown;
+  if (!d) return null;
+
+  const currentUnit = jeepneys.find((j) => j.id === d.assignedJeepneyId);
+  const lastShared = toDate(d.lastLocationUpdate);
+  const added = toDate(d.createdAt);
+  const isSaving = assign.isPending || unassign.isPending;
+  const dirty = unitId !== (d.assignedJeepneyId ?? '');
+
+  const unitOptions = [
+    { value: '', label: 'No unit' },
+    ...[...jeepneys]
+      .sort((a, b) => a.jeepneyNumber.localeCompare(b.jeepneyNumber, undefined, { numeric: true }))
+      .map((j) => ({
+        value: j.id,
+        label: `J${j.jeepneyNumber} · ${j.plateNumber}${j.assignedDriverId && j.assignedDriverId !== d.uid ? ' (has a driver)' : ''}`,
+        disabled: !!j.assignedDriverId && j.assignedDriverId !== d.uid,
+      })),
+  ];
+
+  const save = async () => {
+    try {
+      if (!unitId && d.assignedJeepneyId) {
+        await unassign.mutateAsync({ driverUid: d.uid, jeepneyId: d.assignedJeepneyId });
+      } else if (unitId) {
+        await assign.mutateAsync({ driverUid: d.uid, jeepneyId: unitId });
+      }
+      toast.success('Changes saved');
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save changes');
+    }
+  };
+
+  const copyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(d.email);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy the email');
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <Label required>Select Jeepney</Label>
-        <Select
-          options={jeepneys.map((j) => ({
-            value: j.id,
-            label: `${j.jeepneyNumber} — ${j.plateNumber}`,
-          }))}
-          placeholder="Choose a jeepney…"
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-        />
-        {jeepneys.length === 0 && (
-          <p className="text-warning-400 mt-2 text-xs">No unassigned jeepneys available.</p>
+    <SidePanel
+      isOpen={!!driver}
+      onClose={onClose}
+      busy={isSaving}
+      title={fullName(d)}
+      subtitle={[
+        d.email,
+        d.isActive ? 'active' : 'inactive',
+        currentUnit ? `Unit J${currentUnit.jeepneyNumber}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={!dirty} isLoading={isSaving} loadingText="Saving…">
+            Save changes
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        {d.mustChangePassword && (
+          <Notice
+            icon={<KeyRound size={16} />}
+            title="Still on the temporary password"
+            description="The app asks them to choose their own the first time they sign in."
+          />
         )}
-      </div>
-      <div className="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          size="sm"
-          disabled={!selected || isPending}
-          isLoading={isPending}
-          loadingText="Assigning…"
-          onClick={() => {
-            if (selected) {
-              onAssign(selected);
-              onSuccess();
-            }
-          }}
+
+        <div className="flex items-center gap-4">
+          <Avatar name={fullName(d)} size="lg" />
+          <div className="min-w-0">
+            <p className="text-ink text-[15px] font-bold">{fullName(d)}</p>
+            <p className="text-ink-muted text-[13px]">
+              {lastShared
+                ? `Last shared location ${timeAgo(lastShared, now)} ago`
+                : 'Has not shared a location yet'}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <PanelValue label="Email">
+            <span className="flex w-full items-center justify-between gap-2">
+              <span className="min-w-0 truncate">{d.email}</span>
+              <button
+                type="button"
+                onClick={copyEmail}
+                aria-label="Copy email"
+                className="text-action hover:bg-action-soft flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full"
+              >
+                {copied ? <Check size={15} /> : <Copy size={15} />}
+              </button>
+            </span>
+          </PanelValue>
+          <PanelValue label="Added">{added ? format(added, 'MMM d, yyyy') : '—'}</PanelValue>
+          <PanelValue label="Driver ID" mono>
+            {d.uid.slice(0, 12)}
+          </PanelValue>
+          <PanelValue label="Sign-in">
+            {d.mustChangePassword ? 'Temporary password' : 'Own password'}
+          </PanelValue>
+        </div>
+
+        <Field
+          label="Unit today"
+          htmlFor="driver-unit"
+          hint={
+            d.isActive
+              ? 'Saving moves them onto this unit right away.'
+              : 'Reactivate them to give them a unit.'
+          }
         >
-          Assign
-        </Button>
+          <Select
+            id="driver-unit"
+            options={unitOptions}
+            value={unitId}
+            onChange={(e) => setUnitId(e.target.value)}
+            disabled={!d.isActive}
+          />
+        </Field>
+
+        {d.isActive ? (
+          <PanelActionRow
+            title="Leaving the cooperative"
+            description="Ends their sign-in and frees their unit. The record stays."
+            action={
+              <Button variant="outline" size="sm" onClick={() => onAction('deactivate', d)}>
+                Deactivate this driver
+              </Button>
+            }
+          />
+        ) : (
+          <PanelActionRow
+            title="Back on the roster"
+            description="Lets them sign in to the driver app again."
+            action={
+              <Button variant="outline" size="sm" onClick={() => onAction('reactivate', d)}>
+                Reactivate
+              </Button>
+            }
+          />
+        )}
+
+        <PanelActionRow
+          tone="danger"
+          title="Delete the account"
+          description="Removes their sign-in and record for good."
+          action={
+            <Button variant="danger-outline" size="sm" onClick={() => onAction('delete', d)}>
+              Delete driver
+            </Button>
+          }
+        />
       </div>
-    </div>
+    </SidePanel>
+  );
+}
+
+/* ─── Confirm dialogs ─── */
+function DriverConfirm({
+  confirm,
+  jeepneyById,
+  onClose,
+  onDeleted,
+}: {
+  confirm: { kind: ConfirmKind; driver: DriverProfile } | null;
+  jeepneyById: Map<string, Jeepney>;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const deactivate = useDeactivateDriver();
+  const reactivate = useReactivateDriver();
+  const remove = useDeleteDriver();
+
+  // Keep content stable during the close animation.
+  const [last, setLast] = useState(confirm);
+  useEffect(() => {
+    if (confirm) setLast(confirm);
+  }, [confirm]);
+  const c = confirm ?? last;
+  if (!c) return null;
+
+  const { kind, driver } = c;
+  const name = fullName(driver);
+  const unit = driver.assignedJeepneyId ? jeepneyById.get(driver.assignedJeepneyId) : undefined;
+  const handlers = { onError: (e: Error) => toast.error(e.message) };
+
+  if (kind === 'deactivate') {
+    return (
+      <ConfirmDialog
+        isOpen={!!confirm}
+        onClose={onClose}
+        title={`Deactivate ${name}?`}
+        message={
+          unit
+            ? `They drive ${unit.plateNumber} today. Deactivating takes them off that unit straight away, and it will have no driver until you assign someone.`
+            : "They won't be able to sign in to the driver app until you reactivate them."
+        }
+        cancelLabel="Keep them active"
+        confirmLabel="Deactivate this driver"
+        loadingText="Deactivating…"
+        isLoading={deactivate.isPending}
+        onConfirm={() =>
+          deactivate.mutate(driver.uid, {
+            ...handlers,
+            onSuccess: () => {
+              toast.success(`${name} deactivated`);
+              onClose();
+            },
+          })
+        }
+      >
+        <ConfirmFacts
+          items={[
+            { label: 'Kept', text: 'The record, and their history in the audit logs.' },
+            { label: 'Removed', text: "Their current sign-in and today's unit." },
+          ]}
+        />
+      </ConfirmDialog>
+    );
+  }
+
+  if (kind === 'reactivate') {
+    return (
+      <ConfirmDialog
+        isOpen={!!confirm}
+        onClose={onClose}
+        variant="primary"
+        title={`Reactivate ${name}?`}
+        message="They can sign in to the driver app again. Give them a unit on Assignments."
+        cancelLabel="Not now"
+        confirmLabel="Reactivate"
+        loadingText="Reactivating…"
+        isLoading={reactivate.isPending}
+        onConfirm={() =>
+          reactivate.mutate(driver.uid, {
+            ...handlers,
+            onSuccess: () => {
+              toast.success(`${name} is active again`);
+              onClose();
+            },
+          })
+        }
+      />
+    );
+  }
+
+  return (
+    <ConfirmDialog
+      isOpen={!!confirm}
+      onClose={onClose}
+      title={`Delete ${name}?`}
+      message="This removes their sign-in, their record and their last shared location. It can't be undone."
+      cancelLabel="Keep the record"
+      confirmLabel="Delete driver"
+      loadingText="Deleting…"
+      isLoading={remove.isPending}
+      onConfirm={() =>
+        remove.mutate(driver.uid, {
+          ...handlers,
+          onSuccess: () => {
+            toast.success(`${name} deleted`);
+            onClose();
+            onDeleted();
+          },
+        })
+      }
+    >
+      {unit && (
+        <ConfirmFacts
+          items={[
+            {
+              label: 'Also',
+              text: `${unit.plateNumber} will have no driver until you assign someone.`,
+            },
+          ]}
+        />
+      )}
+    </ConfirmDialog>
   );
 }

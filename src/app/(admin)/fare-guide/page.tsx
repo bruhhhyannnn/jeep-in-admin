@@ -1,21 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
-import { PageBreadcrumb } from '@/components/common';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
   Button,
-  Input,
-  Label,
-  Select,
-  Modal,
   ConfirmDialog,
   DataTable,
+  Field,
+  Input,
   PageError,
+  PanelActionRow,
+  Select,
+  SidePanel,
 } from '@/components/ui';
+import { PageHeader, SearchField } from '@/components/common';
 import { useAuthStore } from '@/store';
 import {
   useFareGuide,
@@ -26,8 +28,9 @@ import {
   useOrganization,
 } from '@/hooks';
 import { fareGuideSchema, type FareGuideFormData } from '@/lib';
-import type { ColumnDef } from '@tanstack/react-table';
 import type { FareGuide } from '@/types';
+
+const peso = (n: number) => `₱${Number(n).toFixed(2)}`;
 
 export default function FareGuidePage() {
   const { userProfile } = useAuthStore();
@@ -36,93 +39,78 @@ export default function FareGuidePage() {
   const { data: org } = useOrganization(isSuperAdmin ? undefined : orgId);
 
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [filterRouteId, setFilterRouteId] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<FareGuide | null>(null);
 
   const { data: routes = [] } = useAllRoutes();
+  const routeName = (id: string) => routes.find((r) => r.id === id)?.name ?? '—';
 
   const effectiveRouteId = isSuperAdmin ? filterRouteId : (org?.routeId ?? '');
-  const {
-    data: fareGuide = [],
-    isPending,
-    isFetching,
-    error,
-  } = useFareGuide(effectiveRouteId || undefined);
+  const { data: fareGuide = [], isPending, error } = useFareGuide(effectiveRouteId || undefined);
   const deleteFare = useDeleteFareEntry();
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query), 350);
-    return () => clearTimeout(t);
-  }, [query]);
-
-  const filtered = debouncedQuery
-    ? fareGuide.filter((f) => f.stopPointName.toLowerCase().includes(debouncedQuery.toLowerCase()))
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? fareGuide.filter((f) => f.stopPointName.toLowerCase().includes(q))
     : fareGuide;
 
-  const handleClose = () => {
-    setModalOpen(false);
-    setEditId(null);
+  const openPanel = (id: string | null) => {
+    setEditId(id);
+    setPanelOpen(true);
   };
 
   const columns: ColumnDef<FareGuide, unknown>[] = [
     {
       accessorKey: 'stopPointName',
-      header: 'Stop Point',
-      cell: ({ getValue }) => (
-        <span className="font-medium text-gray-800 dark:text-gray-200">{String(getValue())}</span>
+      header: 'Stop',
+      cell: ({ row: { original: f } }) => (
+        <div>
+          <p className="text-ink font-semibold">{f.stopPointName}</p>
+          {isSuperAdmin && !filterRouteId && (
+            <p className="text-ink-muted text-[12px]">{routeName(f.routeId)}</p>
+          )}
+        </div>
       ),
     },
     {
       accessorKey: 'distanceKm',
-      header: 'Distance (km)',
+      header: 'Distance',
       cell: ({ getValue }) => (
-        <span className="font-mono text-sm text-gray-600 dark:text-gray-400">
-          {Number(getValue()).toFixed(1)} km
-        </span>
+        <span className="font-data text-ink-muted">{Number(getValue()).toFixed(1)} km</span>
       ),
     },
     {
       accessorKey: 'regularFare',
-      header: 'Regular Fare',
+      header: 'Regular',
       cell: ({ getValue }) => (
-        <span className="font-semibold text-gray-800 dark:text-gray-200">
-          ₱{Number(getValue()).toFixed(2)}
-        </span>
+        <span className="font-data text-ink font-bold">{peso(Number(getValue()))}</span>
       ),
     },
     {
       accessorKey: 'discountedFare',
-      header: 'Discounted Fare',
+      header: 'Discounted',
       cell: ({ getValue }) => (
-        <span className="text-success-400 dark:text-success-600 font-semibold">
-          ₱{Number(getValue()).toFixed(2)}
-        </span>
+        <span className="font-data text-live-ink font-bold">{peso(Number(getValue()))}</span>
       ),
     },
     {
-      id: 'actions',
-      header: 'Actions',
+      id: 'edit',
+      header: () => <span className="sr-only">Edit</span>,
       enableSorting: false,
       cell: ({ row: { original: f } }) => (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setEditId(f.id);
-              setModalOpen(true);
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              openPanel(f.id);
             }}
-            className="hover:text-brand-400 cursor-pointer text-gray-600 transition-colors"
           >
-            <Pencil size={16} />
-          </button>
-          <button
-            onClick={() => setDeleteId(f.id)}
-            className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
-          >
-            <Trash2 size={16} />
-          </button>
+            Edit
+          </Button>
         </div>
       ),
     },
@@ -130,109 +118,105 @@ export default function FareGuidePage() {
 
   if (error) return <PageError message={error.message} />;
 
+  const scopeName = effectiveRouteId ? routeName(effectiveRouteId) : 'all routes';
+
   return (
     <>
-      <div className="space-y-6">
-        <PageBreadcrumb pageTitle="Fare Guide" />
-
-        {/* Filters */}
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-1 flex-wrap items-center gap-3">
-            {isSuperAdmin && (
-              <Select
-                options={routes.map((r) => ({ value: r.id, label: r.name }))}
-                value={filterRouteId}
-                onChange={(e) => setFilterRouteId(e.target.value)}
-                placeholder="All routes"
-              />
-            )}
-            <div className="relative max-w-sm min-w-48 flex-1">
-              <Search
-                size={15}
-                className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-600"
-              />
-              <Input
-                placeholder="Search stop points…"
-                className="pl-9"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-          </div>
-          <Button onClick={() => setModalOpen(true)} startIcon={<Plus size={16} />}>
-            Add Fare Entry
-          </Button>
-        </div>
+      <div className="space-y-5">
+        <PageHeader
+          title="Fare guide"
+          description={`${fareGuide.length} ${fareGuide.length === 1 ? 'fare' : 'fares'} on ${scopeName} · regular and discounted`}
+          actions={
+            <>
+              {isSuperAdmin && (
+                <Select
+                  appearance="pill"
+                  aria-label="Route"
+                  options={[
+                    { value: '', label: 'All routes' },
+                    ...routes.map((r) => ({ value: r.id, label: r.name })),
+                  ]}
+                  value={filterRouteId}
+                  onChange={(e) => setFilterRouteId(e.target.value)}
+                  className="max-w-[240px]"
+                />
+              )}
+              <SearchField value={query} onChange={setQuery} placeholder="Search stops" />
+              <Button startIcon={<Plus size={17} />} onClick={() => openPanel(null)}>
+                Add fare
+              </Button>
+            </>
+          }
+        />
 
         <DataTable
           columns={columns}
           data={filtered}
-          loading={isPending || isFetching}
-          emptyMessage="No fare entries found"
-          globalFilter={debouncedQuery}
+          loading={isPending}
+          emptyMessage={q ? 'No fares match' : 'No fares yet'}
+          emptyHint={q ? undefined : 'Add the fare from the start of the route to each stop.'}
+          onRowClick={(f) => openPanel(f.id)}
+          pageSize={20}
         />
       </div>
 
-      <Modal
-        isOpen={modalOpen}
-        onClose={handleClose}
-        title={editId ? 'Edit Fare Entry' : 'Add Fare Entry'}
-      >
-        <FareGuideForm
-          editId={editId}
-          fareGuide={fareGuide}
-          routes={routes}
-          lockedRouteId={isSuperAdmin ? undefined : effectiveRouteId}
-          onSuccess={() => {
-            handleClose();
-            toast.success(editId ? 'Fare entry updated' : 'Fare entry created');
-          }}
-          onCancel={handleClose}
-        />
-      </Modal>
+      <FarePanel
+        isOpen={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        fare={fareGuide.find((f) => f.id === editId) ?? null}
+        routes={routes}
+        lockedRouteId={isSuperAdmin ? filterRouteId || undefined : effectiveRouteId}
+        allowRouteChoice={isSuperAdmin}
+        onDelete={setDeleting}
+      />
 
       <ConfirmDialog
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
+        isOpen={!!deleting}
+        onClose={() => setDeleting(null)}
+        title={`Remove the fare to ${deleting?.stopPointName ?? 'this stop'}?`}
+        message="Commuters stop seeing it in the fare guide. This can't be undone."
+        cancelLabel="Keep the fare"
+        confirmLabel="Remove fare"
+        loadingText="Removing…"
+        isLoading={deleteFare.isPending}
         onConfirm={() =>
-          deleteFare.mutate(deleteId!, {
+          deleting &&
+          deleteFare.mutate(deleting.id, {
             onSuccess: () => {
-              setDeleteId(null);
-              toast.success('Fare entry deleted');
+              toast.success('Fare removed');
+              setDeleting(null);
+              setPanelOpen(false);
             },
             onError: (e) => toast.error(e.message),
           })
         }
-        title="Delete fare entry"
-        message="This fare entry will be permanently removed from the guide."
-        confirmLabel="Delete"
-        isLoading={deleteFare.isPending}
       />
     </>
   );
 }
 
-/* ─── Fare Guide Form (create & edit) ─── */
-function FareGuideForm({
-  editId,
-  fareGuide,
+/* ─── Add / edit a fare ─── */
+function FarePanel({
+  isOpen,
+  onClose,
+  fare,
   routes,
   lockedRouteId,
-  onSuccess,
-  onCancel,
+  allowRouteChoice,
+  onDelete,
 }: {
-  editId: string | null;
-  fareGuide: FareGuide[];
+  isOpen: boolean;
+  onClose: () => void;
+  fare: FareGuide | null;
   routes: { id: string; name: string }[];
   lockedRouteId?: string;
-  onSuccess: () => void;
-  onCancel: () => void;
+  allowRouteChoice: boolean;
+  onDelete: (fare: FareGuide) => void;
 }) {
-  const isEdit = !!editId;
-  const current = fareGuide.find((f) => f.id === editId);
-
+  const isEdit = !!fare;
   const createFare = useCreateFareEntry();
   const updateFare = useUpdateFareEntry();
+  const formId = 'fare-form';
 
   const {
     register,
@@ -242,100 +226,125 @@ function FareGuideForm({
   } = useForm<FareGuideFormData>({ resolver: zodResolver(fareGuideSchema) });
 
   useEffect(() => {
+    if (!isOpen) return;
     reset({
-      routeId: current?.routeId ?? lockedRouteId ?? '',
-      stopPointName: current?.stopPointName ?? '',
-      distanceKm: current?.distanceKm ?? 0,
-      regularFare: current?.regularFare ?? 0,
-      discountedFare: current?.discountedFare ?? 0,
+      routeId: fare?.routeId ?? lockedRouteId ?? '',
+      stopPointName: fare?.stopPointName ?? '',
+      distanceKm: fare?.distanceKm ?? 0,
+      regularFare: fare?.regularFare ?? 0,
+      discountedFare: fare?.discountedFare ?? 0,
     });
-  }, [current, lockedRouteId, reset]);
+  }, [isOpen, fare, lockedRouteId, reset]);
+
+  const isSaving = isSubmitting || createFare.isPending || updateFare.isPending;
 
   const onSubmit = handleSubmit((data) => {
-    if (isEdit) {
-      updateFare.mutate(
-        { id: editId!, data },
-        { onSuccess, onError: (e) => toast.error(e.message) }
-      );
-    } else {
-      createFare.mutate(data, { onSuccess, onError: (e) => toast.error(e.message) });
-    }
+    const done = {
+      onSuccess: () => {
+        toast.success(isEdit ? 'Fare saved' : `Fare to ${data.stopPointName} added`);
+        onClose();
+      },
+      onError: (e: Error) => toast.error(e.message),
+    };
+    if (fare) updateFare.mutate({ id: fare.id, data }, done);
+    else createFare.mutate(data, done);
   });
 
-  const isPending = isSubmitting || createFare.isPending || updateFare.isPending;
-
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      {!lockedRouteId && (
-        <div>
-          <Label required>Route</Label>
-          <Select
-            options={routes.map((r) => ({ value: r.id, label: r.name }))}
-            placeholder="Select route…"
-            error={!!errors.routeId}
-            hint={errors.routeId?.message}
-            {...register('routeId')}
-          />
-        </div>
-      )}
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      busy={isSaving}
+      title={fare ? `Fare to ${fare.stopPointName}` : 'Add a fare'}
+      subtitle="Measured from the start of the route."
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} isLoading={isSaving} loadingText="Saving…">
+            {isEdit ? 'Save changes' : 'Save this fare'}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={onSubmit} className="space-y-5" noValidate>
+        {allowRouteChoice ? (
+          <Field label="Route" htmlFor="fare-route" error={errors.routeId?.message}>
+            <Select
+              id="fare-route"
+              options={routes.map((r) => ({ value: r.id, label: r.name }))}
+              placeholder="Choose a route"
+              error={!!errors.routeId}
+              {...register('routeId')}
+            />
+          </Field>
+        ) : (
+          <input type="hidden" {...register('routeId')} />
+        )}
 
-      <div>
-        <Label required>Stop Point Name</Label>
         <Input
-          placeholder="e.g. Batac City Hall"
+          id="fare-stop"
+          label="Stop"
+          placeholder="Batac Public Market"
           error={!!errors.stopPointName}
           hint={errors.stopPointName?.message}
           {...register('stopPointName')}
         />
-      </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <Label required>Distance (km)</Label>
+        <Input
+          id="fare-distance"
+          type="number"
+          step="0.1"
+          min="0"
+          inputMode="decimal"
+          label="Distance (km)"
+          className="font-data"
+          error={!!errors.distanceKm}
+          hint={errors.distanceKm?.message}
+          {...register('distanceKm')}
+        />
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
-            type="number"
-            step="0.1"
-            min="0"
-            placeholder="0.0"
-            error={!!errors.distanceKm}
-            hint={errors.distanceKm?.message}
-            {...register('distanceKm')}
-          />
-        </div>
-        <div>
-          <Label required>Regular Fare (₱)</Label>
-          <Input
+            id="fare-regular"
             type="number"
             step="0.25"
             min="0"
-            placeholder="0.00"
+            inputMode="decimal"
+            label="Regular fare (₱)"
+            className="font-data"
             error={!!errors.regularFare}
             hint={errors.regularFare?.message}
             {...register('regularFare')}
           />
-        </div>
-        <div>
-          <Label required>Discounted Fare (₱)</Label>
           <Input
+            id="fare-discounted"
             type="number"
             step="0.25"
             min="0"
-            placeholder="0.00"
+            inputMode="decimal"
+            label="Discounted fare (₱)"
+            className="font-data"
             error={!!errors.discountedFare}
             hint={errors.discountedFare?.message}
             {...register('discountedFare')}
           />
         </div>
-      </div>
 
-      <div className="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" size="sm" isLoading={isPending} loadingText="Saving…">
-          {isEdit ? 'Update' : 'Add Entry'}
-        </Button>
-      </div>
-    </form>
+        {fare && (
+          <PanelActionRow
+            tone="danger"
+            title="Remove this fare"
+            description="Takes it out of the commuter fare guide."
+            action={
+              <Button variant="danger-outline" size="sm" onClick={() => onDelete(fare)}>
+                Remove fare
+              </Button>
+            }
+          />
+        )}
+      </form>
+    </SidePanel>
   );
 }

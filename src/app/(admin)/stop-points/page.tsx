@@ -1,27 +1,30 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Pencil, Trash2, MapPin } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { Plus, Route as RouteIcon } from 'lucide-react';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
-import { PageBreadcrumb } from '@/components/common';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
   Button,
-  Input,
-  Label,
-  Select,
-  Badge,
-  Modal,
   ConfirmDialog,
   DataTable,
-  PageError,
+  Field,
+  Input,
   Map,
   MapControls,
   MapMarker,
   MarkerContent,
+  PageError,
+  PanelActionRow,
+  Select,
+  SidePanel,
+  StatusChip,
+  Switch,
   useMap,
 } from '@/components/ui';
+import { Notice, PageHeader, SearchField } from '@/components/common';
 import { useAuthStore } from '@/store';
 import {
   useStopPoints,
@@ -31,8 +34,7 @@ import {
   useAllRoutes,
   useOrganization,
 } from '@/hooks';
-import { stopPointSchema, type StopPointFormData } from '@/lib';
-import type { ColumnDef } from '@tanstack/react-table';
+import { formatDirection, stopPointSchema, type StopPointFormData } from '@/lib';
 import type { StopPoint } from '@/types';
 
 const DEFAULT_CENTER: [number, number] = [120.551474, 18.058174];
@@ -43,7 +45,7 @@ export default function StopPointsPage() {
   const isSuperAdmin = userProfile?.role === 'super_admin';
   const orgId = userProfile?.organizationId ?? '';
 
-  const { data: org } = useOrganization(orgId);
+  const { data: org } = useOrganization(isSuperAdmin ? undefined : orgId);
   const adminRouteId = org?.routeId ?? '';
 
   const { data: allRoutes = [] } = useAllRoutes();
@@ -56,43 +58,40 @@ export default function StopPointsPage() {
   }, [isSuperAdmin, allRoutes, selectedRouteId]);
 
   const routeId = isSuperAdmin ? selectedRouteId : adminRouteId;
-
   const currentRoute = allRoutes.find((r) => r.id === routeId);
   const directions = currentRoute?.directions ?? [];
 
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedDirection, setSelectedDirection] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<StopPoint | null>(null);
 
-  const { data: stopPoints = [], isPending, isFetching, error } = useStopPoints(routeId);
+  const { data: stopPoints = [], isPending, error } = useStopPoints(routeId || undefined);
   const deleteStopPoint = useDeleteStopPoint();
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query), 350);
-    return () => clearTimeout(t);
-  }, [query]);
-
+  const q = query.trim().toLowerCase();
   const filtered = stopPoints
-    .filter((s) => !debouncedQuery || s.name.toLowerCase().includes(debouncedQuery.toLowerCase()))
+    .filter((s) => !q || `${s.name} ${s.address ?? ''}`.toLowerCase().includes(q))
     .filter((s) => !selectedDirection || s.routeDirection === selectedDirection);
 
-  const handleClose = () => {
-    setModalOpen(false);
-    setEditId(null);
+  const openPanel = (id: string | null) => {
+    setEditId(id);
+    setPanelOpen(true);
   };
 
   const columns: ColumnDef<StopPoint, unknown>[] = [
     {
       id: 'name',
-      header: 'Stop Point',
+      header: 'Stop',
       accessorFn: (s) => s.name,
       cell: ({ row: { original: s } }) => (
-        <div>
-          <p className="font-medium text-gray-800 dark:text-gray-200">{s.name}</p>
-          {s.address && <p className="text-xs text-gray-500">{s.address}</p>}
+        <div className="flex items-center gap-3">
+          <span className="border-ink-mark bg-card h-3.5 w-3.5 shrink-0 rounded-full border-[3px]" />
+          <div className="min-w-0">
+            <p className="text-ink truncate font-semibold">{s.name}</p>
+            {s.address && <p className="text-ink-muted truncate text-[12px]">{s.address}</p>}
+          </div>
         </div>
       ),
     },
@@ -101,9 +100,7 @@ export default function StopPointsPage() {
       header: 'Direction',
       accessorFn: (s) => s.routeDirection,
       cell: ({ row: { original: s } }) => (
-        <Badge color="info" size="sm">
-          {formatDirection(s.routeDirection)}
-        </Badge>
+        <StatusChip tone="info">{formatDirection(s.routeDirection)}</StatusChip>
       ),
     },
     {
@@ -111,7 +108,7 @@ export default function StopPointsPage() {
       header: 'Coordinates',
       accessorFn: (s) => `${s.latitude}, ${s.longitude}`,
       cell: ({ row: { original: s } }) => (
-        <span className="font-mono text-xs text-gray-500">
+        <span className="font-data text-ink-muted text-[12px]">
           {s.latitude.toFixed(5)}, {s.longitude.toFixed(5)}
         </span>
       ),
@@ -120,33 +117,31 @@ export default function StopPointsPage() {
       id: 'status',
       header: 'Status',
       accessorFn: (s) => s.isActive,
-      cell: ({ row: { original: s } }) => (
-        <Badge color={s.isActive ? 'success' : 'danger'} size="sm">
-          {s.isActive ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
+      cell: ({ row: { original: s } }) =>
+        s.isActive ? (
+          <StatusChip tone="live" dot>
+            In use
+          </StatusChip>
+        ) : (
+          <StatusChip tone="neutral">Hidden</StatusChip>
+        ),
     },
     {
-      id: 'actions',
-      header: 'Actions',
+      id: 'edit',
+      header: () => <span className="sr-only">Edit</span>,
       enableSorting: false,
       cell: ({ row: { original: s } }) => (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setEditId(s.id);
-              setModalOpen(true);
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              openPanel(s.id);
             }}
-            className="hover:text-brand-400 cursor-pointer text-gray-600 transition-colors"
           >
-            <Pencil size={16} />
-          </button>
-          <button
-            onClick={() => setDeleteId(s.id)}
-            className="hover:text-danger-400 cursor-pointer text-gray-600 transition-colors"
-          >
-            <Trash2 size={16} />
-          </button>
+            Edit
+          </Button>
         </div>
       ),
     },
@@ -156,90 +151,106 @@ export default function StopPointsPage() {
 
   return (
     <>
-      <div className="space-y-6">
-        <PageBreadcrumb pageTitle="Stop Points" />
-
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-1 flex-wrap items-center gap-3">
-            {isSuperAdmin && (
-              <Select
-                options={allRoutes.map((r) => ({ value: r.id, label: r.name }))}
-                value={selectedRouteId}
-                onChange={(e) => setSelectedRouteId(e.target.value)}
-                placeholder="Select route…"
-              />
-            )}
-            {directions.length > 0 && (
-              <Select
-                options={[
-                  { value: '', label: 'All directions' },
-                  ...directions.map((d) => ({ value: d, label: formatDirection(d) })),
-                ]}
-                value={selectedDirection}
-                onChange={(e) => setSelectedDirection(e.target.value)}
-              />
-            )}
-            <div className="relative max-w-sm min-w-48 flex-1">
-              <Search
-                size={15}
-                className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-600"
-              />
-              <Input
-                placeholder="Search stop points…"
-                className="pl-9"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-          </div>
-          <Button onClick={() => setModalOpen(true)} startIcon={<Plus size={16} />}>
-            Add Stop Point
-          </Button>
-        </div>
-
-        <DataTable
-          columns={columns}
-          data={filtered}
-          loading={isPending || isFetching}
-          emptyMessage="No stop points found"
-          pageSize={15}
+      <div className="space-y-5">
+        <PageHeader
+          title="Stop points"
+          description={
+            currentRoute
+              ? `${stopPoints.length} ${stopPoints.length === 1 ? 'stop' : 'stops'} on ${currentRoute.name}`
+              : 'Where commuters wait for a jeepney.'
+          }
+          actions={
+            <>
+              {isSuperAdmin && (
+                <Select
+                  appearance="pill"
+                  aria-label="Route"
+                  options={allRoutes.map((r) => ({ value: r.id, label: r.name }))}
+                  value={selectedRouteId}
+                  onChange={(e) => {
+                    setSelectedRouteId(e.target.value);
+                    setSelectedDirection('');
+                  }}
+                  placeholder="Choose a route"
+                  className="max-w-[240px]"
+                />
+              )}
+              {directions.length > 0 && (
+                <Select
+                  appearance="pill"
+                  aria-label="Direction"
+                  options={[
+                    { value: '', label: 'Both directions' },
+                    ...directions.map((d) => ({ value: d, label: formatDirection(d) })),
+                  ]}
+                  value={selectedDirection}
+                  onChange={(e) => setSelectedDirection(e.target.value)}
+                />
+              )}
+              <SearchField value={query} onChange={setQuery} placeholder="Search stops" />
+              <Button
+                startIcon={<Plus size={17} />}
+                onClick={() => openPanel(null)}
+                disabled={!routeId}
+              >
+                Add stop
+              </Button>
+            </>
+          }
         />
+
+        {!routeId && !isPending ? (
+          <Notice
+            icon={<RouteIcon size={17} />}
+            tone="info"
+            title={isSuperAdmin ? 'No routes yet' : 'Your organization has no route yet'}
+            description="Stops belong to a route. Once there is one, add its stops here."
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filtered}
+            loading={!!routeId && isPending}
+            emptyMessage={q || selectedDirection ? 'No stops match' : 'No stops on this route yet'}
+            emptyHint={
+              q || selectedDirection ? undefined : 'Add the first stop and place it on the map.'
+            }
+            onRowClick={(s) => openPanel(s.id)}
+            pageSize={15}
+          />
+        )}
       </div>
 
-      <Modal
-        isOpen={modalOpen}
-        onClose={handleClose}
-        title={editId ? 'Edit Stop Point' : 'Add Stop Point'}
-      >
-        <StopPointForm
-          routeId={routeId}
-          directions={directions}
-          editId={editId}
-          stopPoints={stopPoints}
-          onSuccess={() => {
-            handleClose();
-            toast.success(editId ? 'Stop point updated' : 'Stop point created');
-          }}
-          onCancel={handleClose}
-        />
-      </Modal>
+      <StopPointPanel
+        isOpen={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        routeId={routeId}
+        routeName={currentRoute?.name}
+        directions={directions}
+        stop={stopPoints.find((s) => s.id === editId) ?? null}
+        onDelete={setDeleting}
+      />
 
       <ConfirmDialog
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
+        isOpen={!!deleting}
+        onClose={() => setDeleting(null)}
+        title={`Remove ${deleting?.name ?? 'this stop'}?`}
+        message="It disappears from the route and from commuters' maps. This can't be undone."
+        cancelLabel="Keep the stop"
+        confirmLabel="Remove stop"
+        loadingText="Removing…"
+        isLoading={deleteStopPoint.isPending}
         onConfirm={() =>
-          deleteStopPoint.mutate(deleteId!, {
+          deleting &&
+          deleteStopPoint.mutate(deleting.id, {
             onSuccess: () => {
-              setDeleteId(null);
-              toast.success('Stop point deleted');
+              toast.success(`${deleting.name} removed`);
+              setDeleting(null);
+              setPanelOpen(false);
             },
             onError: (e) => toast.error(e.message),
           })
         }
-        title="Delete stop point"
-        message="This stop point will be permanently removed from the route."
-        confirmLabel="Delete"
-        isLoading={deleteStopPoint.isPending}
       />
     </>
   );
@@ -266,26 +277,28 @@ function MapClickHandler({ onPick }: { onPick: (lng: number, lat: number) => voi
   return null;
 }
 
-/* ─── Stop Point Form (create & edit) ─── */
-function StopPointForm({
+/* ─── Add / edit a stop ─── */
+function StopPointPanel({
+  isOpen,
+  onClose,
   routeId,
+  routeName,
   directions,
-  editId,
-  stopPoints,
-  onSuccess,
-  onCancel,
+  stop,
+  onDelete,
 }: {
+  isOpen: boolean;
+  onClose: () => void;
   routeId: string;
+  routeName?: string;
   directions: string[];
-  editId: string | null;
-  stopPoints: StopPoint[];
-  onSuccess: () => void;
-  onCancel: () => void;
+  stop: StopPoint | null;
+  onDelete: (stop: StopPoint) => void;
 }) {
-  const isEdit = !!editId;
-  const current = stopPoints.find((s) => s.id === editId);
+  const isEdit = !!stop;
   const createStopPoint = useCreateStopPoint();
   const updateStopPoint = useUpdateStopPoint();
+  const formId = 'stop-point-form';
 
   const {
     register,
@@ -293,155 +306,200 @@ function StopPointForm({
     reset,
     setValue,
     watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<StopPointFormData>({
     resolver: zodResolver(stopPointSchema),
     defaultValues: { isActive: true },
   });
 
+  useEffect(() => {
+    if (!isOpen) return;
+    reset(
+      stop
+        ? {
+            name: stop.name,
+            address: stop.address ?? '',
+            routeDirection: stop.routeDirection,
+            latitude: stop.latitude,
+            longitude: stop.longitude,
+            isActive: stop.isActive,
+          }
+        : {
+            name: '',
+            address: '',
+            routeDirection: directions.length === 1 ? directions[0] : '',
+            isActive: true,
+          }
+    );
+    // Directions is compared by value; the array itself is rebuilt on every render.
+  }, [isOpen, stop, directions.join('|'), reset]);
+
   const lat = watch('latitude');
   const lng = watch('longitude');
   const hasPin = typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng);
 
-  useEffect(() => {
-    if (current) {
-      reset({
-        name: current.name,
-        address: current.address ?? '',
-        routeDirection: current.routeDirection,
-        latitude: current.latitude,
-        longitude: current.longitude,
-        isActive: current.isActive,
-      });
-    }
-  }, [current, reset]);
-
-  const handlePick = (lng: number, lat: number) => {
-    setValue('longitude', lng, { shouldValidate: true });
-    setValue('latitude', lat, { shouldValidate: true });
+  const handlePick = (pickedLng: number, pickedLat: number) => {
+    setValue('longitude', pickedLng, { shouldValidate: true, shouldDirty: true });
+    setValue('latitude', pickedLat, { shouldValidate: true, shouldDirty: true });
   };
 
-  const mapCenter: [number, number] = current
-    ? [current.longitude, current.latitude]
-    : DEFAULT_CENTER;
-  const mapZoom = current ? 15 : DEFAULT_ZOOM;
+  const mapCenter: [number, number] = stop ? [stop.longitude, stop.latitude] : DEFAULT_CENTER;
+  const mapZoom = stop ? 15 : DEFAULT_ZOOM;
+  const isSaving = isSubmitting || createStopPoint.isPending || updateStopPoint.isPending;
 
   const onSubmit = handleSubmit((data) => {
-    if (isEdit) {
-      updateStopPoint.mutate(
-        { id: editId!, data },
-        { onSuccess, onError: (e) => toast.error(e.message) }
-      );
-    } else {
-      createStopPoint.mutate(
-        { data, routeId },
-        { onSuccess, onError: (e) => toast.error(e.message) }
-      );
-    }
+    const done = {
+      onSuccess: () => {
+        toast.success(isEdit ? `${data.name} saved` : `${data.name} added`);
+        onClose();
+      },
+      onError: (e: Error) => toast.error(e.message),
+    };
+    if (stop) updateStopPoint.mutate({ id: stop.id, data }, done);
+    else createStopPoint.mutate({ data, routeId }, done);
   });
 
-  const isPending = isSubmitting || createStopPoint.isPending || updateStopPoint.isPending;
-
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <Label required>Name</Label>
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      busy={isSaving}
+      width="lg"
+      title={stop ? stop.name : 'Add a stop'}
+      subtitle={
+        stop
+          ? `${formatDirection(stop.routeDirection)}${routeName ? ` · ${routeName}` : ''}`
+          : routeName
+            ? `A new stop on ${routeName}.`
+            : 'A new stop on this route.'
+      }
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} isLoading={isSaving} loadingText="Saving…">
+            {isEdit ? 'Save changes' : 'Save this stop'}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={onSubmit} className="space-y-5" noValidate>
         <Input
-          placeholder="e.g. Batac City Hall"
+          id="stop-name"
+          label="Name"
+          placeholder="Batac Public Market"
           error={!!errors.name}
           hint={errors.name?.message}
           {...register('name')}
         />
-      </div>
-
-      <div>
-        <Label>
-          Address <span className="text-xs font-normal text-gray-500">(optional)</span>
-        </Label>
-        <Input placeholder="e.g. National Highway, Batac City" {...register('address')} />
-      </div>
-
-      <div>
-        <Label required>Direction</Label>
-        <Select
-          options={directions.map((d) => ({ value: d, label: formatDirection(d) }))}
-          placeholder={directions.length === 0 ? 'Select a route first' : 'Select direction…'}
-          disabled={directions.length === 0}
-          error={!!errors.routeDirection}
-          hint={errors.routeDirection?.message}
-          {...register('routeDirection')}
+        <Input
+          id="stop-address"
+          label="Address (optional)"
+          placeholder="National Highway, Batac City"
+          {...register('address')}
         />
-      </div>
+        <Field label="Direction" htmlFor="stop-direction" error={errors.routeDirection?.message}>
+          <Select
+            id="stop-direction"
+            options={directions.map((d) => ({ value: d, label: formatDirection(d) }))}
+            placeholder={
+              directions.length === 0 ? 'This route has no directions yet' : 'Choose a direction'
+            }
+            disabled={directions.length === 0}
+            error={!!errors.routeDirection}
+            {...register('routeDirection')}
+          />
+        </Field>
 
-      {/* Hidden inputs so RHF registers lat/lng for validation */}
-      <input type="hidden" {...register('latitude')} />
-      <input type="hidden" {...register('longitude')} />
+        {/* Hidden inputs so RHF registers lat/lng for validation */}
+        <input type="hidden" {...register('latitude')} />
+        <input type="hidden" {...register('longitude')} />
 
-      <div>
-        <Label required>
-          Location{' '}
-          <span className="text-xs font-normal text-gray-500">— click map to place pin</span>
-        </Label>
-        <div
-          className="mt-1 overflow-hidden rounded-xl border border-gray-300 dark:border-gray-700"
-          style={{ height: 240 }}
-        >
-          <Map center={mapCenter} zoom={mapZoom}>
-            <MapControls showZoom position="top-right" />
-            <MapClickHandler onPick={handlePick} />
-            {hasPin && (
-              <MapMarker
-                longitude={lng}
-                latitude={lat}
-                draggable
-                onDragEnd={({ lng, lat }) => handlePick(lng, lat)}
-              >
-                <MarkerContent>
-                  <div className="bg-warning-400 dark:shadow-theme-lg-dark flex h-8 w-8 animate-pulse items-center justify-center rounded-full border-2 border-gray-300 dark:border-gray-700">
-                    <MapPin size={14} className="text-white" />
-                  </div>
-                </MarkerContent>
-              </MapMarker>
-            )}
-          </Map>
-        </div>
-        {hasPin ? (
-          <p className="mt-1 font-mono text-xs text-gray-500">
-            {lat.toFixed(6)}, {lng.toFixed(6)} — drag pin to fine-tune
+        <div>
+          <p className="text-label text-ink-muted mb-1.5">
+            Location — click the map to place the stop
           </p>
-        ) : (
-          <p className="mt-1 text-xs text-gray-500">Click anywhere on the map to place a pin</p>
-        )}
-        {(errors.latitude || errors.longitude) && (
-          <p className="text-danger-400 mt-1 text-xs">Please click the map to place a pin.</p>
-        )}
-      </div>
+          <div
+            className={
+              errors.latitude || errors.longitude
+                ? 'border-danger rounded-tile h-64 overflow-hidden border-[1.5px]'
+                : 'border-line-strong rounded-tile h-64 overflow-hidden border-[1.5px]'
+            }
+          >
+            {isOpen && (
+              <Map center={mapCenter} zoom={mapZoom}>
+                <MapControls showZoom position="top-right" />
+                <MapClickHandler onPick={handlePick} />
+                {hasPin && (
+                  <MapMarker
+                    longitude={lng}
+                    latitude={lat}
+                    draggable
+                    onDragEnd={({ lng: dLng, lat: dLat }) => handlePick(dLng, dLat)}
+                  >
+                    <MarkerContent>
+                      <span className="border-ink-mark bg-card block h-5 w-5 rounded-full border-4 shadow-md" />
+                    </MarkerContent>
+                  </MapMarker>
+                )}
+              </Map>
+            )}
+          </div>
+          {hasPin ? (
+            <p className="text-ink-muted mt-1.5 text-[13px]">
+              <span className="font-data text-ink">
+                {lat.toFixed(6)}, {lng.toFixed(6)}
+              </span>{' '}
+              · drag the pin to fine-tune
+            </p>
+          ) : (
+            <p
+              className={
+                errors.latitude || errors.longitude
+                  ? 'text-danger-ink mt-1.5 text-[13px]'
+                  : 'text-ink-muted mt-1.5 text-[13px]'
+              }
+            >
+              Click anywhere on the map to place the stop.
+            </p>
+          )}
+        </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          id="isActive"
-          type="checkbox"
-          className="accent-brand-600 h-4 w-4 cursor-pointer"
-          {...register('isActive')}
-        />
-        <Label htmlFor="isActive">Active</Label>
-      </div>
+        <div className="border-line rounded-tile flex items-center justify-between gap-4 border-[1.5px] p-4">
+          <div>
+            <p className="text-ink text-[14px] font-bold">Show to commuters</p>
+            <p className="text-ink-muted mt-0.5 text-[13px]">
+              Hidden stops stay saved but off the map.
+            </p>
+          </div>
+          <Controller
+            control={control}
+            name="isActive"
+            render={({ field }) => (
+              <Switch
+                checked={!!field.value}
+                onCheckedChange={field.onChange}
+                aria-label="Show to commuters"
+              />
+            )}
+          />
+        </div>
 
-      <div className="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" size="sm" isLoading={isPending} loadingText="Saving…">
-          {isEdit ? 'Update' : 'Create'}
-        </Button>
-      </div>
-    </form>
+        {stop && (
+          <PanelActionRow
+            tone="danger"
+            title="Remove this stop"
+            description="Takes it off the route for good."
+            action={
+              <Button variant="danger-outline" size="sm" onClick={() => onDelete(stop)}>
+                Remove stop
+              </Button>
+            }
+          />
+        )}
+      </form>
+    </SidePanel>
   );
-}
-
-function formatDirection(dir: string): string {
-  return dir
-    .split('_')
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join(' → ');
 }

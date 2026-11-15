@@ -6,35 +6,44 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: boolean;
   success?: boolean;
   hint?: string;
+  /** Content pinned inside the right edge of the field (e.g. a "Show" toggle). */
+  endSlot?: React.ReactNode;
 }
 
+export const fieldClasses =
+  'h-12 w-full rounded-input border-[1.5px] bg-card px-4 text-[15px] text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-ink-meta focus:border-action focus:ring-[3px] focus:ring-action/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-sunken disabled:text-ink-muted';
+
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, success, hint, className, id, ...props }, ref) => (
+  ({ label, error, success, hint, className, id, endSlot, ...props }, ref) => (
     <div>
       {label && (
-        <label
-          htmlFor={id}
-          className="mb-1.5 block text-sm font-medium text-gray-600 dark:text-gray-400"
-        >
+        <label htmlFor={id} className="text-label text-ink-muted mb-1.5 block">
           {label}
         </label>
       )}
-      <input
-        ref={ref}
-        id={id}
-        className={cn(
-          'h-11 w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-600',
-          error
-            ? 'border-danger-500 focus:ring-danger-500/20'
-            : success
-              ? 'border-success-500 focus:ring-success-500/20'
-              : 'focus:border-brand-600 focus:ring-brand-600/20 border-gray-300 dark:border-gray-700',
-          className
-        )}
-        {...props}
-      />
+      <div className="relative">
+        <input
+          ref={ref}
+          id={id}
+          aria-invalid={error || undefined}
+          className={cn(
+            fieldClasses,
+            error
+              ? 'border-danger focus:border-danger focus:ring-danger/15'
+              : success
+                ? 'border-live'
+                : 'border-line-strong',
+            endSlot && 'pr-20',
+            className
+          )}
+          {...props}
+        />
+        {endSlot && <div className="absolute inset-y-0 right-2 flex items-center">{endSlot}</div>}
+      </div>
       {hint && (
-        <p className={cn('mt-1.5 text-xs', error ? 'text-danger-400' : 'text-gray-500')}>{hint}</p>
+        <p className={cn('mt-1.5 text-[13px]', error ? 'text-danger-ink' : 'text-ink-muted')}>
+          {hint}
+        </p>
       )}
     </div>
   )

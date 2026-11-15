@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib';
 
@@ -21,11 +22,10 @@ export function Modal({ isOpen, onClose, children, title, className }: ModalProp
       setMounted(true);
       const t = setTimeout(() => setVisible(true), 10);
       return () => clearTimeout(t);
-    } else {
-      setVisible(false);
-      const t = setTimeout(() => setMounted(false), 200);
-      return () => clearTimeout(t);
     }
+    setVisible(false);
+    const t = setTimeout(() => setMounted(false), 200);
+    return () => clearTimeout(t);
   }, [isOpen]);
 
   useEffect(() => {
@@ -37,59 +37,56 @@ export function Modal({ isOpen, onClose, children, title, className }: ModalProp
   }, [isOpen, onClose]);
 
   useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : '';
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = prev;
     };
   }, [isOpen]);
 
   if (!mounted) return null;
 
-  return (
+  return createPortal(
     <div
       className={cn(
         'fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4',
         !visible && 'pointer-events-none'
       )}
     >
-      {/* Backdrop */}
       <div
         className={cn(
-          'fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200',
+          'bg-scrim fixed inset-0 transition-opacity duration-200',
           visible ? 'opacity-100' : 'opacity-0'
         )}
         onClick={onClose}
       />
-
-      {/* Panel */}
       <div
+        role="dialog"
+        aria-modal="true"
         className={cn(
-          'relative flex w-full flex-col bg-white transition-all duration-200 dark:bg-gray-950',
-          // Mobile: full screen, no rounded corners
-          'h-dvh rounded-none',
-          // Desktop: constrained modal
-          'sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-2xl sm:border sm:border-gray-200 sm:shadow-2xl sm:dark:border-gray-800',
-          visible ? 'opacity-100 sm:scale-100' : 'opacity-0 sm:scale-95',
+          'bg-card sm:rounded-card relative flex max-h-[90dvh] w-full flex-col rounded-t-[28px] shadow-lg transition-all duration-200 ease-(--ease-calm) sm:max-w-lg',
+          visible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0',
           className
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Fixed header */}
         {title && (
-          <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+          <div className="border-line flex shrink-0 items-center justify-between border-b px-6 py-4">
+            <h2 className="text-heading text-ink">{title}</h2>
             <button
+              type="button"
               onClick={onClose}
-              className="cursor-pointer text-gray-500 hover:text-gray-300 dark:hover:text-gray-700"
+              aria-label="Close"
+              className="text-ink-muted hover:bg-sunken hover:text-ink flex h-9 w-9 cursor-pointer items-center justify-center rounded-full"
             >
-              <X size={18} />
+              <X size={17} />
             </button>
           </div>
         )}
-
-        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,46 +1,42 @@
 import { create } from 'zustand';
 
 interface SidebarState {
-  isExpanded: boolean;
+  /**
+   * The user's explicit choice from the collapse button. `null` means automatic:
+   * the sidebar folds to icons below 1280px wide.
+   */
+  collapsedPref: boolean | null;
   isMobileOpen: boolean;
-  isHovered: boolean;
-  openSubmenu: string | null;
-  toggleSidebar: () => void;
+  isProfileOpen: boolean;
+  setCollapsedPref: (val: boolean) => void;
   toggleMobileSidebar: () => void;
-  setIsHovered: (val: boolean) => void;
-  toggleSubmenu: (key: string) => void;
-  setOpenSubmenu: (key: string | null) => void;
   closeMobile: () => void;
+  openProfile: () => void;
+  closeProfile: () => void;
 }
 
 export const useSidebarStore = create<SidebarState>((set, get) => ({
-  isExpanded: true,
+  collapsedPref: null,
   isMobileOpen: false,
-  isHovered: false,
-  openSubmenu: null,
+  isProfileOpen: false,
 
-  toggleSidebar() {
-    set({ isExpanded: !get().isExpanded });
+  setCollapsedPref(val) {
+    set({ collapsedPref: val });
   },
 
   toggleMobileSidebar() {
     set({ isMobileOpen: !get().isMobileOpen });
   },
 
-  setIsHovered(val) {
-    set({ isHovered: val });
-  },
-
-  toggleSubmenu(key) {
-    const current = get().openSubmenu;
-    set({ openSubmenu: current === key ? null : key });
-  },
-
-  setOpenSubmenu(key) {
-    set({ openSubmenu: key });
-  },
-
   closeMobile() {
     set({ isMobileOpen: false });
+  },
+
+  openProfile() {
+    set({ isProfileOpen: true, isMobileOpen: false });
+  },
+
+  closeProfile() {
+    set({ isProfileOpen: false });
   },
 }));
