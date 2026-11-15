@@ -36,14 +36,18 @@ export function SimulationPanel({
 
   const start = async () => {
     try {
-      await sim.start({
+      const { approximate } = await sim.start({
         organizationId,
         routeId,
         routeName,
         count: Number(bots),
         minutes: Number(minutes),
       });
-      toast.success(`${bots} simulated jeeps are on the road`);
+      toast.success(
+        approximate
+          ? `${bots} simulated jeeps are on the road. Mapbox is unavailable, so they drive straight between stops.`
+          : `${bots} simulated jeeps are on the road`
+      );
       onClose();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not start the simulation');
